@@ -1,0 +1,7 @@
+# ensure that dev deps are constrained to production deps
+-c requirements.txt
+
+pytest~=8.2.2
+pytest-django~=4.8.0
+factory-boy~=3.3.0
+ruff~=0.5.0

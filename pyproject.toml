@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+extend-select = [
+    "I", # isort
+    "N", # naming
+    "B", # bugbear
+    "FIX", # disallow FIXME/TODO comments
+    "F", # pyflakes
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "djangoproject.settings"
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+addopts = "--nomigrations"

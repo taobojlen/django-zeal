@@ -1,0 +1,23 @@
+name: Test
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+        django-version: ["4.2", "5.0"]
+    name: Test (Python ${{ matrix.python-version }}, Django ${{ matrix.django-version }})
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - run: make ci
+      - run: pip install Django~=${{ matrix.django-version }}
+      - run: make test
+
