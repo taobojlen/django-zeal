@@ -6,3 +6,9 @@ ci:
 
 test:
 	pytest -s
+
+format:
+	ruff format && ruff check --fix
+
+typecheck:
+	pyright .

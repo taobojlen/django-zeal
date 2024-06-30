@@ -10,6 +10,9 @@ extend-select = [
     "F", # pyflakes
 ]
 
+[tool.pyright]
+include = ["src", "tests"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "djangoproject.settings"
 pythonpath = ["src", "tests"]

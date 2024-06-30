@@ -1,3 +1,4 @@
+from typing import Optional
 from django.db import models
 
 
@@ -9,6 +10,11 @@ class User(models.Model):
     # note that there's no related_name set here, because we want to
     # test that case too.
     blocked = models.ManyToManyField("user")
+
+    followers: models.Manager["User"]
+    user_set: models.Manager["User"]
+    posts: models.Manager["Post"]
+    profile: "Profile"
 
 
 class Profile(models.Model):

@@ -56,8 +56,10 @@ def patch_queryset_function(
         queryset = queryset_func(*args, **kwargs)
         context["args"] = context.get("args", args)
         context["kwargs"] = context.get("kwargs", kwargs)
-        queryset._clone = patch_queryset_function(
-            queryset._clone, parser, **context
+        queryset._clone = patch_queryset_function(  # type: ignore
+            queryset._clone,  # type: ignore
+            parser,
+            **context,
         )
         queryset._fetch_all = patch_queryset_fetch_all(
             queryset, parser, context
@@ -164,8 +166,8 @@ def patch_deferred_attribute():
 
         return wrapper
 
-    DeferredAttribute._check_parent_chain = patched_check_parent_chain(
-        DeferredAttribute._check_parent_chain
+    DeferredAttribute._check_parent_chain = patched_check_parent_chain(  # type: ignore
+        DeferredAttribute._check_parent_chain  # type: ignore
     )
 
 
