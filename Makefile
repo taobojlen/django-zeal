@@ -11,6 +11,9 @@ ci:
 test:
 	pytest -s --tb=native
 
+format-check:
+	ruff format --check && ruff check
+
 format:
 	ruff format && ruff check --fix
 

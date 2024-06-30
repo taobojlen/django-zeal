@@ -14,7 +14,7 @@ INSTALLED_APPS = [
     "queryspy",
 ]
 
-MIDDLEWARE = []
+MIDDLEWARE = ["queryspy.middleware.queryspy_middleware"]
 
 ROOT_URLCONF = "djangoproject.urls"
 
