@@ -4,7 +4,7 @@ This library catches N+1s in your Django project.
 
 ## Features
 
-- Raises an error when N+1s are detected
+- Detects N+1s from missing prefetches and from `.defer()`/`.only()`
 - TODO: configurable thresholds
 - TODO: allowlist
 - TODO: catches unused eager loads

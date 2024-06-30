@@ -70,8 +70,15 @@ def test_detects_nplusone_in_reverse_many_to_many_with_no_related_name():
             _ = list(user.user_set.all())
 
 
-# def test_detects_nplusone_due_to_deferred_fields():
-#     pass
+def test_detects_nplusone_due_to_deferred_fields():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+    with pytest.raises(NPlusOneError):
+        for post in (
+            Post.objects.all().select_related("author").only("author__id")
+        ):
+            _ = post.author.username
 
 
 def test_does_not_raise_when_forward_many_to_one_prefetched():

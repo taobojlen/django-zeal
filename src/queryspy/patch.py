@@ -10,6 +10,7 @@ from django.db.models.fields.related_descriptors import (
     create_forward_many_to_many_manager,
     create_reverse_many_to_one_manager,
 )
+from django.db.models.query_utils import DeferredAttribute
 
 from .listeners import ModelAndField, n_plus_one_listener
 
@@ -152,8 +153,25 @@ def patch_many_to_many_descriptor():
     )
 
 
+def patch_deferred_attribute():
+    def patched_check_parent_chain(func):
+        @functools.wraps(func)
+        def wrapper(self, instance, *args, **kwargs):
+            result = func(self, instance, *args, **kwargs)
+            if result is None:
+                n_plus_one_listener.notify(instance.__class__, self.field.name)
+            return result
+
+        return wrapper
+
+    DeferredAttribute._check_parent_chain = patched_check_parent_chain(
+        DeferredAttribute._check_parent_chain
+    )
+
+
 def patch():
     patch_forward_many_to_one_descriptor()
     patch_reverse_many_to_one_descriptor()
     patch_reverse_one_to_one_descriptor()
     patch_many_to_many_descriptor()
+    patch_deferred_attribute()
