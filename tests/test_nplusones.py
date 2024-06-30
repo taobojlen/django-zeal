@@ -1,10 +1,15 @@
 import pytest
 from djangoproject.social.models import Post, Profile, User
-from queryspy.errors import NPlusOneError
+from queryspy import NPlusOneError, reset
 
 from .factories import PostFactory, ProfileFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def reset_listener():
+    reset()
 
 
 def test_detects_nplusone_in_forward_many_to_one():
@@ -104,4 +109,14 @@ def test_detects_nplusone_due_to_deferred_fields():
     for post in (
         Post.objects.all().select_related("author").only("author__username")
     ):
+        _ = post.author.username
+
+
+def test_has_configurable_threshold(settings):
+    settings.QUERYSPY_NPLUSONE_THRESHOLD = 3
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    for post in Post.objects.all():
         _ = post.author.username
