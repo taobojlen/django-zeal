@@ -4,9 +4,9 @@ This library catches N+1s in your Django project.
 
 ## Features
 
-- Detects N+1s from missing prefetches and from `.defer()`/`.only()`
+- Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`
 - Configurable thresholds
-- TODO: allowlist
+- Allow-list
 - TODO: catches unused eager loads
 - Well-tested
 - No dependencies
@@ -95,6 +95,20 @@ from queryspy import queryspy_ignore
 
 with queryspy_ignore():
     # code in this block will not log/raise queryspy errors
+```
+
+Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can
+add it to your settings:
+```python
+QUERYSPY_ALLOWLIST = [
+    {"model": "polls.Question", "field": "options"},
+
+    # you can use fnmatch syntax in the model/field, too
+    {"model": "polls.*", "field": "options"},
+
+    # if you don't pass in a field, all N+1s arising from the model will be ignored
+    {"model": "polls.Question"},
+]
 ```
 
 ## Contributing

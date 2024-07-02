@@ -3,18 +3,24 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Type
+from fnmatch import fnmatch
+from typing import NotRequired, Type, TypedDict
 
 from django.conf import settings
 from django.db import models
 
-from .errors import NPlusOneError
+from .errors import NPlusOneError, QuerySpyError
 
 ModelAndField = tuple[Type[models.Model], str]
 
 _is_in_context = ContextVar("in_context", default=False)
 
 logger = logging.getLogger("queryspy")
+
+
+class AllowListEntry(TypedDict):
+    model: str
+    field: NotRequired[str]
 
 
 class Listener(ABC):
@@ -25,11 +31,39 @@ class Listener(ABC):
     def reset(self): ...
 
     @property
-    def _should_error(self) -> bool:
-        if hasattr(settings, "QUERYSPY_RAISE"):
-            return settings.QUERYSPY_RAISE
+    @abstractmethod
+    def error_class(self) -> type[QuerySpyError]: ...
+
+    @property
+    def _allowlist(self) -> list[AllowListEntry]:
+        if hasattr(settings, "QUERYSPY_ALLOWLIST"):
+            return settings.QUERYSPY_ALLOWLIST
         else:
-            return True
+            return []
+
+    def _alert(self, model: type[models.Model], field: str, message: str):
+        should_error = (
+            settings.QUERYSPY_RAISE
+            if hasattr(settings, "QUERYSPY_RAISE")
+            else True
+        )
+        is_allowlisted = False
+        for entry in self._allowlist:
+            model_match = fnmatch(
+                f"{model._meta.app_label}.{model.__name__}", entry["model"]
+            )
+            field_match = fnmatch(field, entry.get("field", "*"))
+            if model_match and field_match:
+                is_allowlisted = True
+                break
+
+        if is_allowlisted:
+            return
+
+        if should_error:
+            raise self.error_class(message)
+        else:
+            logger.warning(message)
 
 
 class NPlusOneListener(Listener):
@@ -37,6 +71,10 @@ class NPlusOneListener(Listener):
 
     def __init__(self):
         self.reset()
+
+    @property
+    def error_class(self):
+        return NPlusOneError
 
     def notify(self, model: Type[models.Model], field: str):
         if not _is_in_context.get():
@@ -47,10 +85,7 @@ class NPlusOneListener(Listener):
         count = self.counts[key]
         if count >= self._threshold:
             message = f"N+1 detected on {model.__name__}.{field}"
-            if self._should_error:
-                raise NPlusOneError(message)
-            else:
-                logger.warning(message)
+            self._alert(model, field, message)
 
     def reset(self):
         self.counts = defaultdict(int)
