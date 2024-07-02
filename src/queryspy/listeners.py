@@ -9,6 +9,8 @@ from typing import NotRequired, Type, TypedDict
 from django.conf import settings
 from django.db import models
 
+from queryspy.util import get_caller
+
 from .errors import NPlusOneError, QuerySpyError
 
 ModelAndField = tuple[Type[models.Model], str]
@@ -60,6 +62,8 @@ class Listener(ABC):
         if is_allowlisted:
             return
 
+        caller = get_caller()
+        message = f"{message} at {caller.filename}:{caller.lineno} in {caller.function}"
         if should_error:
             raise self.error_class(message)
         else:

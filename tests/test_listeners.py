@@ -1,4 +1,5 @@
 import logging
+import re
 
 import pytest
 from djangoproject.social.models import Post, User
@@ -20,7 +21,26 @@ def test_can_log_errors(settings, caplog):
     with caplog.at_level(logging.WARNING):
         for user in User.objects.all():
             _ = list(user.posts.all())
-        assert "N+1 detected on User.posts" in caplog.text
+        assert (
+            re.search(
+                r"N\+1 detected on User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+                caplog.text,
+            )
+            is not None
+        ), f"{caplog.text} does not match regex"
+
+
+@queryspy_context()
+def test_errors_include_caller():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+    with pytest.raises(
+        NPlusOneError,
+        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:43 in test_errors_include_caller",
+    ):
+        for user in User.objects.all():
+            _ = list(user.posts.all())
 
 
 @queryspy_context()

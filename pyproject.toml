@@ -8,6 +8,7 @@ extend-select = [
     "B", # bugbear
     "FIX", # disallow FIXME/TODO comments
     "F", # pyflakes
+    "T20", # flake8-print
 ]
 
 [tool.pyright]
