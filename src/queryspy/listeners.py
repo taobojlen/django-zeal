@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
@@ -13,6 +14,8 @@ ModelAndField = tuple[Type[models.Model], str]
 
 _is_in_context = ContextVar("in_context", default=False)
 
+logger = logging.getLogger("queryspy")
+
 
 class Listener(ABC):
     @abstractmethod
@@ -21,10 +24,16 @@ class Listener(ABC):
     @abstractmethod
     def reset(self): ...
 
+    @property
+    def _should_error(self) -> bool:
+        if hasattr(settings, "QUERYSPY_RAISE"):
+            return settings.QUERYSPY_RAISE
+        else:
+            return True
+
 
 class NPlusOneListener(Listener):
     counts: dict[ModelAndField, int]
-    threshold: int
 
     def __init__(self):
         self.reset()
@@ -33,20 +42,25 @@ class NPlusOneListener(Listener):
         if not _is_in_context.get():
             return
 
-        threshold = (
-            settings.QUERYSPY_NPLUSONE_THRESHOLD
-            if hasattr(settings, "QUERYSPY_NPLUSONE_THRESHOLD")
-            else 2
-        )
-
         key = (model, field)
         self.counts[key] += 1
         count = self.counts[key]
-        if count >= threshold:
-            raise NPlusOneError(f"N+1 detected on {model.__name__}.{field}")
+        if count >= self._threshold:
+            message = f"N+1 detected on {model.__name__}.{field}"
+            if self._should_error:
+                raise NPlusOneError(message)
+            else:
+                logger.warning(message)
 
     def reset(self):
         self.counts = defaultdict(int)
+
+    @property
+    def _threshold(self) -> int:
+        if hasattr(settings, "QUERYSPY_NPLUSONE_THRESHOLD"):
+            return settings.QUERYSPY_NPLUSONE_THRESHOLD
+        else:
+            return 2
 
 
 n_plus_one_listener = NPlusOneListener()

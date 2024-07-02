@@ -73,7 +73,14 @@ if settings.DEBUG:
 
 ## Configuration
 
-By default, N+1s will be reported when the same query is executed twice. To configure this
+By default, any issues detected by `queryspy` will raise a `QuerySpyError`. If you'd
+rather log any detected N+1s, you can set:
+
+```
+QUERYSPY_RAISE = False
+```
+
+N+1s will be reported when the same query is executed twice. To configure this
 threshold, set the following in your Django settings.
 
 ```python
