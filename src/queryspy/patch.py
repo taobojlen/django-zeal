@@ -54,6 +54,13 @@ def patch_queryset_function(
     @functools.wraps(queryset_func)
     def wrapper(*args, **kwargs):
         queryset = queryset_func(*args, **kwargs)
+
+        # don't patch the same queryset more than once
+        if (
+            hasattr(queryset, "__queryspy_patched")
+            and queryset.__queryspy_patched  # type: ignore
+        ):
+            return queryset
         context["args"] = context.get("args", args)
         context["kwargs"] = context.get("kwargs", kwargs)
         queryset._clone = patch_queryset_function(  # type: ignore
@@ -64,6 +71,7 @@ def patch_queryset_function(
         queryset._fetch_all = patch_queryset_fetch_all(
             queryset, parser, context
         )
+        queryset.__queryspy_patched = True  # type: ignore
         return queryset
 
     return wrapper
