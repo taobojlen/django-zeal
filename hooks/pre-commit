@@ -1,5 +1,5 @@
 #!/bin/sh
 
-make format-check
-make typecheck
+make format-check || exit 1
+make typecheck || exit 1
 

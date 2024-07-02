@@ -1,6 +1,8 @@
 import re
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import Post, Profile, User
 from queryspy import NPlusOneError, queryspy_context
 
@@ -37,6 +39,17 @@ def test_detects_nplusone_in_reverse_many_to_one():
 
     for user in User.objects.prefetch_related("posts").all():
         _ = list(user.posts.all())
+
+
+def test_no_false_positive_when_calling_reverse_many_to_one_twice():
+    user = UserFactory.create()
+    PostFactory.create(author=user)
+
+    with queryspy_context(), CaptureQueriesContext(connection) as ctx:
+        queryset = user.posts.all()
+        list(queryset)  # evaluate queryset once
+        list(queryset)  # evalute again (cached)
+        assert len(ctx.captured_queries) == 1
 
 
 @queryspy_context()

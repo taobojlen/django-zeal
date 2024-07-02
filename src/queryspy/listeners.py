@@ -69,3 +69,12 @@ def queryspy_context():
     finally:
         n_plus_one_listener.reset()
         _is_in_context.reset(token)
+
+
+@contextmanager
+def queryspy_ignore():
+    token = _is_in_context.set(False)
+    try:
+        yield
+    finally:
+        _is_in_context.reset(token)
