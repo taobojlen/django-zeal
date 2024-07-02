@@ -43,7 +43,7 @@ class NPlusOneListener(Listener):
         self.counts[key] += 1
         count = self.counts[key]
         if count >= threshold:
-            raise NPlusOneError("BAD!")
+            raise NPlusOneError(f"N+1 detected on {model.__name__}.{field}")
 
     def reset(self):
         self.counts = defaultdict(int)
@@ -68,4 +68,13 @@ def queryspy_context():
         yield
     finally:
         n_plus_one_listener.reset()
+        _is_in_context.reset(token)
+
+
+@contextmanager
+def queryspy_ignore():
+    token = _is_in_context.set(False)
+    try:
+        yield
+    finally:
         _is_in_context.reset(token)

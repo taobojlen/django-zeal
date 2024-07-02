@@ -1,7 +1,7 @@
 import functools
 import importlib
 import inspect
-from typing import Any, Callable, NotRequired, TypedDict, Unpack
+from typing import Any, Callable, NotRequired, Type, TypedDict, Unpack
 
 from django.db import models
 from django.db.models.fields.related_descriptors import (
@@ -93,16 +93,33 @@ def patch_forward_many_to_one_descriptor():
     )
 
 
+def parse_related_parts(
+    model: Type[models.Model],
+    related_name: str | None,
+    related_model: Type[models.Model],
+) -> ModelAndField:
+    field_name = related_name or f"{related_model._meta.model_name}_set"
+    return (model, field_name)
+
+
 def patch_reverse_many_to_one_descriptor():
     def parser(context: QuerysetContext):
-        assert "args" in context
-        field = context["args"][0]
-        return (field.model, field.name)
+        assert (
+            "manager_call_args" in context
+            and "rel" in context["manager_call_args"]
+        )
+        rel = context["manager_call_args"]["rel"]
+        return parse_related_parts(
+            rel.model, rel.related_name, rel.related_model
+        )
 
     def patched_create_reverse_many_to_one_manager(*args, **kwargs):
+        manager_call_args = inspect.getcallargs(
+            create_reverse_many_to_one_manager, *args, **kwargs
+        )
         manager = create_reverse_many_to_one_manager(*args, **kwargs)
         manager.get_queryset = patch_queryset_function(
-            manager.get_queryset, parser
+            manager.get_queryset, parser, manager_call_args=manager_call_args
         )
         return manager
 
@@ -117,7 +134,7 @@ def patch_reverse_one_to_one_descriptor():
         assert "args" in context
         descriptor = context["args"][0]
         field = descriptor.related.field
-        return (field.model, field.name)
+        return (field.related_model, field.remote_field.name)
 
     ReverseOneToOneDescriptor.get_queryset = patch_queryset_function(
         ReverseOneToOneDescriptor.get_queryset, parser
@@ -137,7 +154,7 @@ def patch_many_to_many_descriptor():
         related_model = manager.target_field.related_model
         field_name = manager.prefetch_cache_name if rel.related_name else None
 
-        return (model, field_name or f"{related_model._meta.model_name}_set")
+        return parse_related_parts(model, field_name, related_model)
 
     def patched_create_forward_many_to_many_manager(*args, **kwargs):
         manager_call_args = inspect.getcallargs(
