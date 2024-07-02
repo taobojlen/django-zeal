@@ -80,6 +80,16 @@ threshold, set the following in your Django settings.
 QUERYSPY_NPLUSONE_THRESHOLD = 3
 ```
 
+To handle false positives, you can temporarily disable `queryspy` in parts of your code
+using a context manager:
+
+```python
+from queryspy import queryspy_ignore
+
+with queryspy_ignore():
+    # code in this block will not log/raise queryspy errors
+```
+
 ## Contributing
 
 1. First, install [uv](https://github.com/astral-sh/uv).
