@@ -9,15 +9,15 @@ from typing import NotRequired, Type, TypedDict
 from django.conf import settings
 from django.db import models
 
-from queryspy.util import get_caller
+from zealot.util import get_caller
 
-from .errors import NPlusOneError, QuerySpyError
+from .errors import NPlusOneError, ZealotError
 
 ModelAndField = tuple[Type[models.Model], str]
 
 _is_in_context = ContextVar("in_context", default=False)
 
-logger = logging.getLogger("queryspy")
+logger = logging.getLogger("zealot")
 
 
 class AllowListEntry(TypedDict):
@@ -34,19 +34,19 @@ class Listener(ABC):
 
     @property
     @abstractmethod
-    def error_class(self) -> type[QuerySpyError]: ...
+    def error_class(self) -> type[ZealotError]: ...
 
     @property
     def _allowlist(self) -> list[AllowListEntry]:
-        if hasattr(settings, "QUERYSPY_ALLOWLIST"):
-            return settings.QUERYSPY_ALLOWLIST
+        if hasattr(settings, "ZEALOT_ALLOWLIST"):
+            return settings.ZEALOT_ALLOWLIST
         else:
             return []
 
     def _alert(self, model: type[models.Model], field: str, message: str):
         should_error = (
-            settings.QUERYSPY_RAISE
-            if hasattr(settings, "QUERYSPY_RAISE")
+            settings.ZEALOT_RAISE
+            if hasattr(settings, "ZEALOT_RAISE")
             else True
         )
         is_allowlisted = False
@@ -96,8 +96,8 @@ class NPlusOneListener(Listener):
 
     @property
     def _threshold(self) -> int:
-        if hasattr(settings, "QUERYSPY_NPLUSONE_THRESHOLD"):
-            return settings.QUERYSPY_NPLUSONE_THRESHOLD
+        if hasattr(settings, "ZEALOT_NPLUSONE_THRESHOLD"):
+            return settings.ZEALOT_NPLUSONE_THRESHOLD
         else:
             return 2
 
@@ -115,7 +115,7 @@ def teardown():
 
 
 @contextmanager
-def queryspy_context():
+def zealot_context():
     token = _is_in_context.set(True)
     try:
         yield
@@ -125,7 +125,7 @@ def queryspy_context():
 
 
 @contextmanager
-def queryspy_ignore():
+def zealot_ignore():
     token = _is_in_context.set(False)
     try:
         yield

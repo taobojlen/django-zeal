@@ -11,10 +11,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "djangoproject.social",
-    "queryspy",
+    "zealot",
 ]
 
-MIDDLEWARE = ["queryspy.middleware.queryspy_middleware"]
+MIDDLEWARE = ["zealot.middleware.zealot_middleware"]
 
 ROOT_URLCONF = "djangoproject.urls"
 
