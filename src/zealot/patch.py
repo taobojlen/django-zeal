@@ -57,8 +57,7 @@ def patch_queryset_function(
 
         # don't patch the same queryset more than once
         if (
-            hasattr(queryset, "__queryspy_patched")
-            and queryset.__queryspy_patched  # type: ignore
+            hasattr(queryset, "__zealot_patched") and queryset.__zealot_patched  # type: ignore
         ):
             return queryset
         context["args"] = context.get("args", args)
@@ -71,7 +70,7 @@ def patch_queryset_function(
         queryset._fetch_all = patch_queryset_fetch_all(
             queryset, parser, context
         )
-        queryset.__queryspy_patched = True  # type: ignore
+        queryset.__zealot_patched = True  # type: ignore
         return queryset
 
     return wrapper

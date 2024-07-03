@@ -3,15 +3,15 @@ import re
 
 import pytest
 from djangoproject.social.models import Post, User
-from queryspy.errors import NPlusOneError
-from queryspy.listeners import queryspy_context
+from zealot.errors import NPlusOneError
+from zealot.listeners import zealot_context
 
 from .factories import PostFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
-@queryspy_context()
+@zealot_context()
 def test_can_log_errors(settings, caplog):
     settings.QUERYSPY_RAISE = False
 
@@ -30,7 +30,7 @@ def test_can_log_errors(settings, caplog):
         ), f"{caplog.text} does not match regex"
 
 
-@queryspy_context()
+@zealot_context()
 def test_errors_include_caller():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
@@ -43,7 +43,7 @@ def test_errors_include_caller():
             _ = list(user.posts.all())
 
 
-@queryspy_context()
+@zealot_context()
 def test_can_exclude_with_allowlist(settings):
     settings.QUERYSPY_ALLOWLIST = [{"model": "social.User", "field": "posts"}]
 
@@ -60,7 +60,7 @@ def test_can_exclude_with_allowlist(settings):
             _ = post.author
 
 
-@queryspy_context()
+@zealot_context()
 def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
     settings.QUERYSPY_ALLOWLIST = [{"model": "social.U*"}]
 
@@ -77,7 +77,7 @@ def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
             _ = post.author
 
 
-@queryspy_context()
+@zealot_context()
 def test_can_use_fnmatch_pattern_in_allowlist_field(settings):
     settings.QUERYSPY_ALLOWLIST = [{"model": "social.User", "field": "p*st*"}]
 

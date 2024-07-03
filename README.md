@@ -1,4 +1,4 @@
-# queryspy
+# zealot
 
 This library catches N+1s in your Django project.
 
@@ -18,22 +18,22 @@ It's not exactly a fork, but not far from it.
 
 ## Installation
 
-To install `queryspy`, add it to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
+To install `zealot`, add it to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
 don't want to run it in production: I haven't profiled it but it will have a performance
 impact.
 
 ```python
 if DEBUG:
-    INSTALLED_APPS.append("queryspy")
-    MIDDLEWARE.append("queryspy.middleware.queryspy_middleware")
+    INSTALLED_APPS.append("zealot")
+    MIDDLEWARE.append("zealot.middleware.zealot_middleware")
 ```
 
 This will detect N+1s that happen in web requests. If you also want to find N+1s in other
 places like background tasks or management commands, you can use the `setup` and
-`teardown` functions, or the `queryspy_context` context manager:
+`teardown` functions, or the `zealot_context` context manager:
 
 ```python
-from queryspy import setup, teardown, queryspy_context
+from zealot import setup, teardown, zealot_context
 
 
 def foo():
@@ -44,13 +44,13 @@ def foo():
         teardown()
 
 
-@queryspy_context()
+@zealot_context()
 def bar():
     # ...
 
 
 def baz():
-    with queryspy_context():
+    with zealot_context():
         # ...
 ```
 
@@ -58,22 +58,22 @@ For example, if you use Celery, you can configure this using [signals](https://d
 
 ```python
 from celery.signals import task_prerun, task_postrun
-from queryspy import setup, teardown
+from zealot import setup, teardown
 from django.conf import settings
 
 if settings.DEBUG:
     @task_prerun.connect()
-    def setup_queryspy(*args, **kwargs):
+    def setup_zealot(*args, **kwargs):
         setup()
 
     @task_postrun.connect()
-    def teardown_queryspy(*args, **kwargs):
+    def teardown_zealot(*args, **kwargs):
         teardown()
 ```
 
 ## Configuration
 
-By default, any issues detected by `queryspy` will raise a `QuerySpyError`. If you'd
+By default, any issues detected by `zealot` will raise a `ZealotError`. If you'd
 rather log any detected N+1s, you can set:
 
 ```
@@ -87,14 +87,14 @@ threshold, set the following in your Django settings.
 QUERYSPY_NPLUSONE_THRESHOLD = 3
 ```
 
-To handle false positives, you can temporarily disable `queryspy` in parts of your code
+To handle false positives, you can temporarily disable `zealot` in parts of your code
 using a context manager:
 
 ```python
-from queryspy import queryspy_ignore
+from zealot import zealot_ignore
 
-with queryspy_ignore():
-    # code in this block will not log/raise queryspy errors
+with zealot_ignore():
+    # code in this block will not log/raise zealot errors
 ```
 
 Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can

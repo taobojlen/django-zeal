@@ -2,14 +2,14 @@ import sys
 
 import pytest
 from djangoproject.social.models import User
-from queryspy.listeners import queryspy_context
+from zealot.listeners import zealot_context
 
 from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
-@queryspy_context()
+@zealot_context()
 def test_handles_calling_queryset_many_times():
     UserFactory.create()
     user = User.objects.prefetch_related("posts").all()[0]

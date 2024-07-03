@@ -3,8 +3,8 @@ from django.apps import AppConfig
 from .patch import patch
 
 
-class QuerySpyConfig(AppConfig):
-    name = "queryspy"
+class ZealotConfig(AppConfig):
+    name = "zealot"
 
     def ready(self):
         patch()

@@ -1,12 +1,12 @@
 import inspect
 
-PATTERNS = ["site-packages", "queryspy/listeners.py", "queryspy/patch.py"]
+PATTERNS = ["site-packages", "zealot/listeners.py", "zealot/patch.py"]
 
 
 def get_caller() -> inspect.FrameInfo:
     """
     Returns the filename and line number of the current caller,
-    excluding any code in site-packages or queryspy.
+    excluding any code in site-packages or zealot.
     """
     return next(
         frame
