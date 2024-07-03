@@ -19,3 +19,9 @@ format:
 
 typecheck:
 	pyright .
+
+build:
+	python -m build --installer uv
+
+publish:
+	twine upload dist/*

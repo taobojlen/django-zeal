@@ -7,3 +7,5 @@ factory-boy~=3.3.0
 ruff~=0.5.0
 django-stubs~=5.0
 pyright
+build
+twine
