@@ -16,3 +16,8 @@ def test_handles_calling_queryset_many_times():
     for _ in range(sys.getrecursionlimit() + 1):
         # this should *not* raise a recursion error
         list(user.posts.all())
+
+
+@zealot_context()
+def test_handles_empty_querysets():
+    User.objects.none().first()

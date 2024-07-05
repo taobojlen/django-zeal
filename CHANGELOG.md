@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Handle empty querysets
+
 ## 0.1.1 - 2024-07-05
 
 ### Fixed

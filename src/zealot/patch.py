@@ -253,8 +253,11 @@ def patch_global_queryset():
     def patch_fetch_all(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
+            should_ignore = (
+                is_single_query(self.query) and self._result_cache is None
+            )
             ret = func(self, *args, **kwargs)  # call the original _fetch_all
-            if is_single_query(self.query):
+            if should_ignore and len(self) > 0:
                 n_plus_one_listener.ignore(get_instance_key(self[0]))
             return ret
 
