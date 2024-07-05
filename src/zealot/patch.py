@@ -243,28 +243,6 @@ def patch_deferred_attribute():
     )
 
 
-#
-# def patch_queryset_iter():
-#     """
-#     Patch QuerySet.__iter__. We do this so we can track when instances are singly-
-#     loaded, i.e. via `.first()` or `.get()` or `.all()[0]` and so on. Those instances
-#     will be ignored in our N+1 calculations to avoid false positives.
-#     """
-#
-#     def patch_iter(func):
-#         @functools.wraps(func)
-#         def wrapper(self, *args, **kwargs):
-#             iterator = func(self, *args, **kwargs)
-#             if is_single_query(self.query):
-#                 iterator, clone = itertools.tee(iterator)
-#                 n_plus_one_listener.ignore(get_instance_key(next(clone)))
-#             return iterator
-#
-#         return wrapper
-#
-#     QuerySet.__iter__ = patch_iter(QuerySet.__iter__)
-
-
 def patch_global_queryset():
     """
     We patch `_fetch_all` and `.get()` on querysets to let us ignore singly-loaded
@@ -302,5 +280,4 @@ def patch():
     patch_reverse_one_to_one_descriptor()
     patch_many_to_many_descriptor()
     patch_deferred_attribute()
-    # patch_queryset_iter()
     patch_global_queryset()

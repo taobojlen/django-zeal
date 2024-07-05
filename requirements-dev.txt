@@ -64,8 +64,6 @@ pygments==2.18.0
     # via
     #   readme-renderer
     #   rich
-pyinstrument==4.6.2
-    # via -r requirements-dev.in
 pyproject-hooks==1.1.0
     # via build
 pyright==1.1.369
@@ -74,7 +72,10 @@ pytest==8.2.2
     # via
     #   -r requirements-dev.in
     #   pytest-django
+    #   pytest-random-order
 pytest-django==4.8.0
+    # via -r requirements-dev.in
+pytest-random-order==1.1.1
     # via -r requirements-dev.in
 python-dateutil==2.9.0.post0
     # via faker

@@ -19,6 +19,7 @@ extend-select = [
     "FIX", # disallow FIXME/TODO comments
     "F", # pyflakes
     "T20", # flake8-print
+    "ERA", # commented-out code
 ]
 
 [tool.pyright]

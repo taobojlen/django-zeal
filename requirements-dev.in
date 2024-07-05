@@ -9,4 +9,4 @@ django-stubs~=5.0
 pyright
 build
 twine
-pyinstrument
+pytest-random-order
