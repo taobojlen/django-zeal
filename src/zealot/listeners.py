@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from fnmatch import fnmatch
 from typing import NotRequired, Type, TypedDict
 
@@ -13,7 +13,12 @@ from zealot.util import get_caller
 
 from .errors import NPlusOneError, ZealotError
 
-ModelAndField = tuple[Type[models.Model], str]
+
+class QuerySource(TypedDict):
+    model: type[models.Model]
+    field: str
+    instance_key: str  # e.g. `User:123`
+
 
 _is_in_context = ContextVar("in_context", default=False)
 
@@ -71,7 +76,8 @@ class Listener(ABC):
 
 
 class NPlusOneListener(Listener):
-    counts: dict[ModelAndField, int]
+    ignored_instances: set[str]
+    counts: dict[tuple[type[models.Model], str], int]
 
     def __init__(self):
         self.reset()
@@ -80,19 +86,34 @@ class NPlusOneListener(Listener):
     def error_class(self):
         return NPlusOneError
 
-    def notify(self, model: Type[models.Model], field: str):
+    def notify(self, model: Type[models.Model], field: str, instance_key: str):
         if not _is_in_context.get():
             return
 
         key = (model, field)
         self.counts[key] += 1
         count = self.counts[key]
-        if count >= self._threshold:
+        if (
+            count >= self._threshold
+            and instance_key not in self.ignored_instances
+        ):
             message = f"N+1 detected on {model.__name__}.{field}"
             self._alert(model, field, message)
 
+    def ignore(self, instance_key: str):
+        """
+        Tells the listener to ignore N+1s arising from this instance.
+
+        This is used when the given instance is singly-loaded, e.g. via `.first()`
+        or `.get()`. This is to prevent false positives.
+        """
+        if not _is_in_context.get():
+            return
+        self.ignored_instances.add(instance_key)
+
     def reset(self):
         self.counts = defaultdict(int)
+        self.ignored_instances = set()
 
     @property
     def _threshold(self) -> int:
@@ -105,23 +126,25 @@ class NPlusOneListener(Listener):
 n_plus_one_listener = NPlusOneListener()
 
 
-def setup():
-    _is_in_context.set(True)
+def setup() -> Token:
+    return _is_in_context.set(True)
 
 
-def teardown():
+def teardown(token: Token | None = None):
     n_plus_one_listener.reset()
-    _is_in_context.set(False)
+    if token:
+        _is_in_context.reset(token)
+    else:
+        _is_in_context.set(False)
 
 
 @contextmanager
 def zealot_context():
-    token = _is_in_context.set(True)
+    token = setup()
     try:
         yield
     finally:
-        n_plus_one_listener.reset()
-        _is_in_context.reset(token)
+        teardown(token)
 
 
 @contextmanager

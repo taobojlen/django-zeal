@@ -26,6 +26,37 @@ def test_detects_nplusone_in_forward_many_to_one():
         _ = post.author.username
 
 
+def test_no_false_positive_when_loading_single_object_forward_many_to_one():
+    user = UserFactory.create()
+    post_1, post_2 = PostFactory.create_batch(2, author=user)
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        post_1 = Post.objects.filter(pk=post_1.pk).first()
+        post_2 = Post.objects.filter(pk=post_2.pk).first()
+        assert post_1 is not None and post_2 is not None
+        # queries on `post` should not raise an exception, because `post` was
+        # singly-loaded
+        _ = post_1.author
+        _ = post_2.author
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        # same when using a slice to get a single record
+        post_1 = Post.objects.filter(pk=post_1.pk).all()[0]
+        post_2 = Post.objects.filter(pk=post_2.pk).all()[0]
+        _ = post_1.author
+        _ = post_2.author
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        # similarly, when using `.get()`, no N+1 error
+        post_1 = Post.objects.get(pk=post_1.pk)
+        post_2 = Post.objects.get(pk=post_2.pk)
+        _ = post_1.author
+        _ = post_2.author
+        assert len(ctx.captured_queries) == 4
+
+
 @zealot_context()
 def test_detects_nplusone_in_reverse_many_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
@@ -67,6 +98,34 @@ def test_detects_nplusone_in_forward_one_to_one():
         _ = profile.user.username
 
 
+def test_no_false_positive_when_loading_single_object_forward_one_to_one():
+    user_1, user_2 = UserFactory.create_batch(2)
+    profile_1 = ProfileFactory.create(user=user_1)
+    profile_2 = ProfileFactory.create(user=user_2)
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        profile_1 = Profile.objects.filter(pk=profile_1.pk).first()
+        profile_2 = Profile.objects.filter(pk=profile_2.pk).first()
+        assert profile_1 is not None and profile_2 is not None
+        _ = profile_1.user.username
+        _ = profile_2.user.username
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        profile_1 = Profile.objects.filter(pk=profile_1.pk)[0]
+        profile_2 = Profile.objects.filter(pk=profile_2.pk)[0]
+        _ = profile_1.user.username
+        _ = profile_2.user.username
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        profile_1 = Profile.objects.get(pk=profile_1.pk)
+        profile_2 = Profile.objects.get(pk=profile_2.pk)
+        _ = profile_1.user.username
+        _ = profile_2.user.username
+        assert len(ctx.captured_queries) == 4
+
+
 @zealot_context()
 def test_detects_nplusone_in_reverse_one_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
@@ -80,6 +139,34 @@ def test_detects_nplusone_in_reverse_one_to_one():
 
     for user in User.objects.select_related("profile").all():
         _ = user.profile.display_name
+
+
+def test_no_false_positive_when_loading_single_object_reverse_one_to_one():
+    user_1, user_2 = UserFactory.create_batch(2)
+    ProfileFactory.create(user=user_1)
+    ProfileFactory.create(user=user_2)
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk).first()
+        user_2 = User.objects.filter(pk=user_2.pk).first()
+        assert user_1 is not None and user_2 is not None
+        _ = user_1.profile.display_name
+        _ = user_2.profile.display_name
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk)[0]
+        user_2 = User.objects.filter(pk=user_2.pk)[0]
+        _ = user_1.profile.display_name
+        _ = user_2.profile.display_name
+        assert len(ctx.captured_queries) == 4
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.get(pk=user_1.pk)
+        user_2 = User.objects.get(pk=user_2.pk)
+        _ = user_1.profile.display_name
+        _ = user_2.profile.display_name
+        assert len(ctx.captured_queries) == 4
 
 
 @zealot_context()
@@ -97,6 +184,27 @@ def test_detects_nplusone_in_forward_many_to_many():
         _ = list(user.following.all())
 
 
+def test_no_false_positive_when_loading_single_object_forward_many_to_many():
+    user_1, user_2 = UserFactory.create_batch(2)
+    user_1.following.add(user_2)
+    user_2.following.add(user_1)
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.following.first().username
+        _ = user_2.following.first().username
+        assert len(ctx.captured_queries) == 2
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.following.all()[0].username
+        _ = user_2.following.all()[0].username
+        assert len(ctx.captured_queries) == 2
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.following.get(pk=user_2.pk).username
+        _ = user_2.following.get(pk=user_1.pk).username
+        assert len(ctx.captured_queries) == 2
+
+
 @zealot_context()
 def test_detects_nplusone_in_reverse_many_to_many():
     [user_1, user_2] = UserFactory.create_batch(2)
@@ -110,6 +218,27 @@ def test_detects_nplusone_in_reverse_many_to_many():
 
     for user in User.objects.prefetch_related("followers").all():
         _ = list(user.followers.all())
+
+
+def test_no_false_positive_when_loading_single_object_reverse_many_to_many():
+    user_1, user_2 = UserFactory.create_batch(2)
+    user_1.following.add(user_2)
+    user_2.following.add(user_1)
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.followers.first().username
+        _ = user_2.followers.first().username
+        assert len(ctx.captured_queries) == 2
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.followers.all()[0].username
+        _ = user_2.followers.all()[0].username
+        assert len(ctx.captured_queries) == 2
+
+    with zealot_context(), CaptureQueriesContext(connection) as ctx:
+        _ = user_1.followers.get(pk=user_2.pk).username
+        _ = user_2.followers.get(pk=user_1.pk).username
+        assert len(ctx.captured_queries) == 2
 
 
 @zealot_context()
