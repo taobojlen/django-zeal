@@ -1,6 +1,8 @@
 [project]
 name = "zealot"
 version = "0.1.1"
+description = "Detect N+1s in your Django app"
+readme = "README.md"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
