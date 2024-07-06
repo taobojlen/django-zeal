@@ -21,3 +21,9 @@ def test_handles_calling_queryset_many_times():
 @zealot_context()
 def test_handles_empty_querysets():
     User.objects.none().first()
+
+
+@zealot_context()
+def test_handles_get_with_values():
+    user = UserFactory.create()
+    User.objects.filter(pk=user.pk).values("username").get()

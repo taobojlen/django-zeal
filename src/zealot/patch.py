@@ -33,8 +33,14 @@ class QuerysetContext(TypedDict):
 Parser = Callable[[QuerysetContext], QuerySource]
 
 
-def get_instance_key(instance: models.Model) -> str:
-    return f"{instance.__class__.__name__}:{instance.pk}"
+def get_instance_key(instance: models.Model | dict[str, Any]) -> str | None:
+    if isinstance(instance, models.Model):
+        return f"{instance.__class__.__name__}:{instance.pk}"
+    else:
+        # when calling a queryset with `.values(...).get()`, the instance
+        # we get here may be a dict. we don't handle that case formally,
+        # so we return None to ignore that instance in our listeners.
+        return None
 
 
 def patch_module_function(original, patched):

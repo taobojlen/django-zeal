@@ -102,7 +102,7 @@ class NPlusOneListener(Listener):
             message = f"N+1 detected on {model.__name__}.{field}"
             self._alert(model, field, message)
 
-    def ignore(self, instance_key: str):
+    def ignore(self, instance_key: str | None):
         """
         Tells the listener to ignore N+1s arising from this instance.
 
@@ -110,6 +110,8 @@ class NPlusOneListener(Listener):
         or `.get()`. This is to prevent false positives.
         """
         if not _is_in_context.get():
+            return
+        if not instance_key:
             return
         self.ignored_instances.add(instance_key)
 
