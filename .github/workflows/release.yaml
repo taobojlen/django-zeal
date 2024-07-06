@@ -6,11 +6,9 @@ on:
       - '*'
 
 jobs:
-  build-and-publish:
+  build:
     name: Build distribution
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,6 +22,26 @@ jobs:
           --user
       - name: Build
         run: python3 -m build
-      - name: Publish
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/zealot
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
