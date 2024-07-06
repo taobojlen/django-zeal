@@ -1,6 +1,9 @@
 # zealot
 
-This library catches N+1s in your Django project.
+Catch N+1 queries in your Django project.
+
+![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)
+![PyPI - Version](https://img.shields.io/pypi/v/zealot?color=lightgrey)
 
 ## Features
 
@@ -18,7 +21,13 @@ It's not exactly a fork, but not far from it.
 
 ## Installation
 
-To install zealot, add it to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
+First:
+
+```
+pip install zealot
+```
+
+Then, add zealot to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
 don't want to run it in production: I haven't profiled it but it will have a performance
 impact.
 
@@ -65,7 +74,7 @@ if DEBUG or TEST:
 ```
 
 This will enable zealot in any tests that go through your middleware. If you want to enable
-it in *all* tests, you need to do a bit more work.
+it in _all_ tests, you need to do a bit more work.
 
 If you use pytest, use a fixture in your `conftest.py`:
 
@@ -146,7 +155,7 @@ def baz():
 By default, any issues detected by zealot will raise a `ZealotError`. If you'd
 rather log any detected N+1s, you can set:
 
-```
+```python
 ZEALOT_RAISE = False
 ```
 
@@ -169,6 +178,7 @@ with zealot_ignore():
 
 Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can
 add it to your settings:
+
 ```python
 ZEALOT_ALLOWLIST = [
     {"model": "polls.Question", "field": "options"},
@@ -187,4 +197,3 @@ ZEALOT_ALLOWLIST = [
 2. Create a virtual env using `uv venv` and activate it with `source .venv/bin/activate`.
 3. Run `make install` to install dev dependencies.
 4. To run tests, run `make test`.
-

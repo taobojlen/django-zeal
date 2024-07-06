@@ -3,9 +3,10 @@ name = "zealot"
 version = "0.1.2"
 description = "Detect N+1s in your Django app"
 readme = "README.md"
+license = { file = "LICENSE" }
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -15,11 +16,11 @@ line-length = 79
 
 [tool.ruff.lint]
 extend-select = [
-    "I", # isort
-    "N", # naming
-    "B", # bugbear
+    "I",   # isort
+    "N",   # naming
+    "B",   # bugbear
     "FIX", # disallow FIXME/TODO comments
-    "F", # pyflakes
+    "F",   # pyflakes
     "T20", # flake8-print
     "ERA", # commented-out code
 ]
