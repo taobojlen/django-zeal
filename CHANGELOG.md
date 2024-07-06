@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add support for Python 3.9+
+
 ## 0.1.2 - 2024-07-06
 
 ### Fixed

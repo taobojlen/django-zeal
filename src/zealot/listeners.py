@@ -4,7 +4,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from fnmatch import fnmatch
-from typing import NotRequired, Type, TypedDict
+from typing import Optional, TypedDict
 
 from django.conf import settings
 from django.db import models
@@ -17,7 +17,7 @@ from .errors import NPlusOneError, ZealotError
 class QuerySource(TypedDict):
     model: type[models.Model]
     field: str
-    instance_key: str | None  # e.g. `User:123`
+    instance_key: Optional[str]  # e.g. `User:123`
 
 
 _is_in_context = ContextVar("in_context", default=False)
@@ -27,7 +27,7 @@ logger = logging.getLogger("zealot")
 
 class AllowListEntry(TypedDict):
     model: str
-    field: NotRequired[str]
+    field: Optional[str]
 
 
 class Listener(ABC):
@@ -59,7 +59,7 @@ class Listener(ABC):
             model_match = fnmatch(
                 f"{model._meta.app_label}.{model.__name__}", entry["model"]
             )
-            field_match = fnmatch(field, entry.get("field", "*"))
+            field_match = fnmatch(field, entry.get("field") or "*")
             if model_match and field_match:
                 is_allowlisted = True
                 break
@@ -87,7 +87,10 @@ class NPlusOneListener(Listener):
         return NPlusOneError
 
     def notify(
-        self, model: Type[models.Model], field: str, instance_key: str | None
+        self,
+        model: type[models.Model],
+        field: str,
+        instance_key: Optional[str],
     ):
         if not _is_in_context.get():
             return
@@ -102,7 +105,7 @@ class NPlusOneListener(Listener):
             message = f"N+1 detected on {model.__name__}.{field}"
             self._alert(model, field, message)
 
-    def ignore(self, instance_key: str | None):
+    def ignore(self, instance_key: Optional[str]):
         """
         Tells the listener to ignore N+1s arising from this instance.
 
@@ -134,7 +137,7 @@ def setup() -> Token:
     return _is_in_context.set(True)
 
 
-def teardown(token: Token | None = None):
+def teardown(token: Optional[Token] = None):
     n_plus_one_listener.reset()
     if token:
         _is_in_context.reset(token)
