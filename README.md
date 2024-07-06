@@ -40,14 +40,13 @@ from celery.signals import task_prerun, task_postrun
 from zealot import setup, teardown
 from django.conf import settings
 
-if settings.DEBUG:
-    @task_prerun.connect()
-    def setup_zealot(*args, **kwargs):
-        setup()
+@task_prerun.connect()
+def setup_zealot(*args, **kwargs):
+    setup()
 
-    @task_postrun.connect()
-    def teardown_zealot(*args, **kwargs):
-        teardown()
+@task_postrun.connect()
+def teardown_zealot(*args, **kwargs):
+    teardown()
 ```
 
 ### Unittest
