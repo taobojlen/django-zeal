@@ -1,7 +1,7 @@
 import functools
 import importlib
 import inspect
-from typing import Any, Callable, NotRequired, Type, TypedDict, Unpack
+from typing import Any, Callable, Optional, TypedDict, Union
 
 from django.db import models
 from django.db.models.fields.related_descriptors import (
@@ -19,21 +19,23 @@ from .listeners import QuerySource, n_plus_one_listener
 
 
 class QuerysetContext(TypedDict):
-    args: NotRequired[Any]
-    kwargs: NotRequired[Any]
+    args: Optional[Any]
+    kwargs: Optional[Any]
 
     # This is only used for many-to-many relations. It contains the call args
     # when `create_forward_many_to_many_manager` is called.
-    manager_call_args: NotRequired[dict[str, Any]]
+    manager_call_args: Optional[dict[str, Any]]
 
     # used by ReverseManyToOne. a django model instance.
-    instance: NotRequired[models.Model]
+    instance: Optional[models.Model]
 
 
 Parser = Callable[[QuerysetContext], QuerySource]
 
 
-def get_instance_key(instance: models.Model | dict[str, Any]) -> str | None:
+def get_instance_key(
+    instance: Union[models.Model, dict[str, Any]],
+) -> Optional[str]:
     if isinstance(instance, models.Model):
         return f"{instance.__class__.__name__}:{instance.pk}"
     else:
@@ -70,8 +72,16 @@ def patch_queryset_fetch_all(
 def patch_queryset_function(
     queryset_func: Callable[..., models.QuerySet],
     parser: Parser,
-    **context: Unpack[QuerysetContext],
+    context: Optional[QuerysetContext] = None,
 ):
+    if context is None:
+        context = {
+            "args": None,
+            "kwargs": None,
+            "manager_call_args": None,
+            "instance": None,
+        }
+
     @functools.wraps(queryset_func)
     def wrapper(*args, **kwargs):
         queryset = queryset_func(*args, **kwargs)
@@ -88,7 +98,7 @@ def patch_queryset_function(
         queryset._clone = patch_queryset_function(  # type: ignore
             queryset._clone,  # type: ignore
             parser,
-            **context,
+            context=context,
         )
         queryset._fetch_all = patch_queryset_fetch_all(
             queryset, parser, context
@@ -106,10 +116,10 @@ def patch_forward_many_to_one_descriptor():
     """
 
     def parser(context: QuerysetContext) -> QuerySource:
-        assert "args" in context
+        assert "args" in context and context["args"] is not None
         descriptor = context["args"][0]
 
-        if "kwargs" in context:
+        if "kwargs" in context and context["kwargs"] is not None:
             instance = context["kwargs"]["instance"]
             instance_key = get_instance_key(instance)
         else:
@@ -128,9 +138,9 @@ def patch_forward_many_to_one_descriptor():
 
 
 def parse_related_parts(
-    model: Type[models.Model],
-    related_name: str | None,
-    related_model: Type[models.Model],
+    model: type[models.Model],
+    related_name: Optional[str],
+    related_model: type[models.Model],
 ) -> tuple[type[models.Model], str]:
     field_name = related_name or f"{related_model._meta.model_name}_set"
     return (model, field_name)
@@ -140,9 +150,10 @@ def patch_reverse_many_to_one_descriptor():
     def parser(context: QuerysetContext) -> QuerySource:
         assert (
             "manager_call_args" in context
+            and context["manager_call_args"] is not None
             and "rel" in context["manager_call_args"]
         )
-        assert "instance" in context
+        assert "instance" in context and context["instance"] is not None
         rel = context["manager_call_args"]["rel"]
         model, field = parse_related_parts(
             rel.model, rel.related_name, rel.related_model
@@ -165,8 +176,12 @@ def patch_reverse_many_to_one_descriptor():
                 self.get_queryset = patch_queryset_function(
                     self.get_queryset,
                     parser,
-                    manager_call_args=manager_call_args,
-                    instance=instance,
+                    context={
+                        "args": None,
+                        "kwargs": None,
+                        "manager_call_args": manager_call_args,
+                        "instance": instance,
+                    },
                 )
                 return func(self, instance)
 
@@ -183,10 +198,10 @@ def patch_reverse_many_to_one_descriptor():
 
 def patch_reverse_one_to_one_descriptor():
     def parser(context: QuerysetContext) -> QuerySource:
-        assert "args" in context
+        assert "args" in context and context["args"] is not None
         descriptor = context["args"][0]
         field = descriptor.related.field
-        if "kwargs" in context:
+        if "kwargs" in context and context["kwargs"] is not None:
             instance = context["kwargs"]["instance"]
             instance_key = get_instance_key(instance)
         else:
@@ -206,9 +221,10 @@ def patch_many_to_many_descriptor():
     def parser(context: QuerysetContext) -> QuerySource:
         assert (
             "manager_call_args" in context
+            and context["manager_call_args"] is not None
             and "rel" in context["manager_call_args"]
         )
-        assert "args" in context
+        assert "args" in context and context["args"] is not None
         rel = context["manager_call_args"]["rel"]
         manager = context["args"][0]
         model = manager.instance.__class__
@@ -230,7 +246,14 @@ def patch_many_to_many_descriptor():
         )
         manager = create_forward_many_to_many_manager(*args, **kwargs)
         manager.get_queryset = patch_queryset_function(
-            manager.get_queryset, parser, manager_call_args=manager_call_args
+            manager.get_queryset,
+            parser,
+            context={
+                "args": None,
+                "kwargs": None,
+                "manager_call_args": manager_call_args,
+                "instance": None,
+            },
         )
         return manager
 

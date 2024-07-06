@@ -6,8 +6,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         django-version: ["4.2", "5.0"]
+        exclude:
+          # django 5 requires python >=3.10
+          - python-version: 3.9
+            django-version: 5.0
+          - python-version: 3.9
+            django-version: 5.1
     name: Test (Python ${{ matrix.python-version }}, Django ${{ matrix.django-version }})
 
     steps:
@@ -19,6 +25,24 @@ jobs:
           cache: 'pip'
       - run: make ci
       - run: pip install Django~=${{ matrix.django-version }}
+      - run: make test
+
+  test-django-prerelease:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    name: Test Django prerelease (Python ${{ matrix.python-version }})
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - run: make ci
+      - run: pip install --pre django
       - run: make test
 
   typecheck:

@@ -4,6 +4,7 @@ version = "0.1.2"
 description = "Detect N+1s in your Django app"
 readme = "README.md"
 license = { file = "LICENSE" }
+requires-python = ">=3.9"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -23,6 +24,7 @@ extend-select = [
     "F",   # pyflakes
     "T20", # flake8-print
     "ERA", # commented-out code
+    "UP",  # pyupgrade
 ]
 
 [tool.pyright]
