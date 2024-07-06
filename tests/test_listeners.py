@@ -4,14 +4,12 @@ import re
 import pytest
 from djangoproject.social.models import Post, User
 from zealot.errors import NPlusOneError
-from zealot.listeners import zealot_context
 
 from .factories import PostFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
-@zealot_context()
 def test_can_log_errors(settings, caplog):
     settings.ZEALOT_RAISE = False
 
@@ -23,27 +21,25 @@ def test_can_log_errors(settings, caplog):
             _ = list(user.posts.all())
         assert (
             re.search(
-                r"N\+1 detected on User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+                r"N\+1 detected on User\.posts at .*\/test_listeners\.py:21 in test_can_log_errors",
                 caplog.text,
             )
             is not None
         ), f"{caplog.text} does not match regex"
 
 
-@zealot_context()
 def test_errors_include_caller():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
     with pytest.raises(
         NPlusOneError,
-        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:43 in test_errors_include_caller",
+        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:40 in test_errors_include_caller",
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
 
 
-@zealot_context()
 def test_can_exclude_with_allowlist(settings):
     settings.ZEALOT_ALLOWLIST = [{"model": "social.User", "field": "posts"}]
 
@@ -60,7 +56,6 @@ def test_can_exclude_with_allowlist(settings):
             _ = post.author
 
 
-@zealot_context()
 def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
     settings.ZEALOT_ALLOWLIST = [{"model": "social.U*"}]
 
@@ -77,7 +72,6 @@ def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
             _ = post.author
 
 
-@zealot_context()
 def test_can_use_fnmatch_pattern_in_allowlist_field(settings):
     settings.ZEALOT_ALLOWLIST = [{"model": "social.User", "field": "p*st*"}]
 

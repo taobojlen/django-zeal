@@ -5,13 +5,13 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import Post, Profile, User
 from zealot import NPlusOneError, zealot_context
+from zealot.listeners import zealot_ignore
 
 from .factories import PostFactory, ProfileFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_many_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
@@ -26,7 +26,6 @@ def test_detects_nplusone_in_forward_many_to_one():
         _ = post.author.username
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_many_to_one_iterator():
     for _ in range(4):
         user = UserFactory.create()
@@ -42,7 +41,6 @@ def test_detects_nplusone_in_forward_many_to_one_iterator():
         _ = post.author.username
 
 
-@zealot_context()
 def test_handles_prefetch_instead_of_select_related_in_forward_many_to_one():
     user_1, user_2 = UserFactory.create_batch(2)
     PostFactory(author=user_1)
@@ -86,7 +84,6 @@ def test_no_false_positive_when_loading_single_object_forward_many_to_one():
         assert len(ctx.captured_queries) == 4
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_many_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
@@ -101,7 +98,6 @@ def test_detects_nplusone_in_reverse_many_to_one():
         _ = list(user.posts.all())
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_many_to_one_iterator():
     for _ in range(4):
         user = UserFactory.create()
@@ -127,7 +123,6 @@ def test_no_false_positive_when_calling_reverse_many_to_one_twice():
         assert len(ctx.captured_queries) == 1
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_one_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
@@ -142,7 +137,6 @@ def test_detects_nplusone_in_forward_one_to_one():
         _ = profile.user.username
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_one_to_one_iterator():
     for _ in range(4):
         user = UserFactory.create()
@@ -159,7 +153,6 @@ def test_detects_nplusone_in_forward_one_to_one_iterator():
         _ = profile.user.username
 
 
-@zealot_context()
 def test_handles_prefetch_instead_of_select_related_in_forward_one_to_one():
     user_1, user_2 = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
@@ -200,7 +193,6 @@ def test_no_false_positive_when_loading_single_object_forward_one_to_one():
         assert len(ctx.captured_queries) == 4
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_one_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
@@ -215,7 +207,6 @@ def test_detects_nplusone_in_reverse_one_to_one():
         _ = user.profile.display_name
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_one_to_one_iterator():
     for _ in range(4):
         user = UserFactory.create()
@@ -230,7 +221,6 @@ def test_detects_nplusone_in_reverse_one_to_one_iterator():
         _ = user.profile.display_name
 
 
-@zealot_context()
 def test_handles_prefetch_instead_of_select_related_in_reverse_one_to_one():
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
@@ -272,7 +262,6 @@ def test_no_false_positive_when_loading_single_object_reverse_one_to_one():
         assert len(ctx.captured_queries) == 4
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_many_to_many():
     [user_1, user_2] = UserFactory.create_batch(2)
     user_1.following.add(user_2)
@@ -287,7 +276,6 @@ def test_detects_nplusone_in_forward_many_to_many():
         _ = list(user.following.all())
 
 
-@zealot_context()
 def test_detects_nplusone_in_forward_many_to_many_iterator():
     influencer = UserFactory.create()
     users = UserFactory.create_batch(4)
@@ -326,7 +314,6 @@ def test_no_false_positive_when_loading_single_object_forward_many_to_many():
         assert len(ctx.captured_queries) == 2
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_many_to_many():
     [user_1, user_2] = UserFactory.create_batch(2)
     user_1.following.add(user_2)
@@ -341,7 +328,6 @@ def test_detects_nplusone_in_reverse_many_to_many():
         _ = list(user.followers.all())
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_many_to_many_iterator():
     follower = UserFactory.create()
     users = UserFactory.create_batch(4)
@@ -379,7 +365,6 @@ def test_no_false_positive_when_loading_single_object_reverse_many_to_many():
         assert len(ctx.captured_queries) == 2
 
 
-@zealot_context()
 def test_detects_nplusone_in_reverse_many_to_many_with_no_related_name():
     [user_1, user_2] = UserFactory.create_batch(2)
     user_1.blocked.add(user_2)
@@ -394,7 +379,6 @@ def test_detects_nplusone_in_reverse_many_to_many_with_no_related_name():
         _ = list(user.user_set.all())
 
 
-@zealot_context()
 def test_detects_nplusone_due_to_deferred_fields():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
@@ -413,7 +397,6 @@ def test_detects_nplusone_due_to_deferred_fields():
         _ = post.author.username
 
 
-@zealot_context()
 def test_detects_nplusone_due_to_deferred_fields_in_iterator():
     for _ in range(4):
         user = UserFactory.create()
@@ -438,7 +421,6 @@ def test_detects_nplusone_due_to_deferred_fields_in_iterator():
         _ = post.author.username
 
 
-@zealot_context()
 def test_handles_prefetch_instead_of_select_related_with_deferred_fields():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
@@ -466,6 +448,7 @@ def test_has_configurable_threshold(settings):
         _ = post.author.username
 
 
+@zealot_ignore()
 def test_does_nothing_if_not_in_middleware(settings, client):
     settings.MIDDLEWARE = []
     [user_1, user_2] = UserFactory.create_batch(2)
@@ -484,7 +467,9 @@ def test_works_in_web_requests(client):
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
-    with pytest.raises(NPlusOneError):
+    # we use zealot_ignore, but the test should still pass because the middleware
+    # sets up a zealot_context
+    with zealot_ignore(), pytest.raises(NPlusOneError):
         response = client.get("/users/")
 
     # but multiple requests work fine

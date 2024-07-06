@@ -49,7 +49,7 @@ def teardown_zealot(*args, **kwargs):
     teardown()
 ```
 
-### Unittest
+### Tests
 
 Django [runs tests with `DEBUG=False`](https://docs.djangoproject.com/en/5.0/topics/testing/overview/#other-test-conditions),
 so to run zealot in your tests, you'll first need to ensure it's added to your
@@ -65,7 +65,21 @@ if DEBUG or TEST:
 ```
 
 This will enable zealot in any tests that go through your middleware. If you want to enable
-it in *all* tests, you need to do a bit more work by setting up a custom test runner.
+it in *all* tests, you need to do a bit more work.
+
+If you use pytest, use a fixture in your `conftest.py`:
+
+```python
+import pytest
+from zealot import zealot_context
+
+@pytest.fixture(scope="function", autouse=True)
+def use_zealot():
+    with zealot_context():
+        yield
+```
+
+If you use unittest, add a custom test runner:
 
 ```python
 # In e.g. `myapp/testing/test_runners.py`
