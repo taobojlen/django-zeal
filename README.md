@@ -5,9 +5,9 @@ This library catches N+1s in your Django project.
 ## Features
 
 - Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`
+- Friendly error messages like `N+1 detected on User.followers at myapp/views.py:25 in get_user`
 - Configurable thresholds
 - Allow-list
-- TODO: catches unused eager loads
 - Well-tested
 - No dependencies
 
@@ -18,7 +18,7 @@ It's not exactly a fork, but not far from it.
 
 ## Installation
 
-To install `zealot`, add it to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
+To install zealot, add it to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
 don't want to run it in production: I haven't profiled it but it will have a performance
 impact.
 
@@ -28,33 +28,12 @@ if DEBUG:
     MIDDLEWARE.append("zealot.middleware.zealot_middleware")
 ```
 
-This will detect N+1s that happen in web requests. If you also want to find N+1s in other
-places like background tasks or management commands, you can use the `setup` and
-`teardown` functions, or the `zealot_context` context manager:
+This will detect N+1s that happen in web requests. To catch N+1s in more places,
+read on!
 
-```python
-from zealot import setup, teardown, zealot_context
+### Celery
 
-
-def foo():
-    setup()
-    try:
-        # ...
-    finally:
-        teardown()
-
-
-@zealot_context()
-def bar():
-    # ...
-
-
-def baz():
-    with zealot_context():
-        # ...
-```
-
-For example, if you use Celery, you can configure this using [signals](https://docs.celeryq.dev/en/stable/userguide/signals.html):
+If you use Celery, you can configure this using [signals](https://docs.celeryq.dev/en/stable/userguide/signals.html):
 
 ```python
 from celery.signals import task_prerun, task_postrun
@@ -71,9 +50,87 @@ if settings.DEBUG:
         teardown()
 ```
 
+### Unittest
+
+Django [runs tests with `DEBUG=False`](https://docs.djangoproject.com/en/5.0/topics/testing/overview/#other-test-conditions),
+so to run zealot in your tests, you'll first need to ensure it's added to your
+`INSTALLED_APPS` and `MIDDLEWARE`. You could do something like:
+
+```python
+import sys
+
+TEST = "test" in sys.argv
+if DEBUG or TEST:
+    INSTALLED_APPS.append("zealot")
+    MIDDLEWARE.append("zealot.middleware.zealot_middleware")
+```
+
+This will enable zealot in any tests that go through your middleware. If you want to enable
+it in *all* tests, you need to do a bit more work by setting up a custom test runner.
+
+```python
+# In e.g. `myapp/testing/test_runners.py`
+from django.test.runner import DiscoverRunner
+from unittest.runner import TextTestResult
+
+class ZealotTestResult(TextTestResult):
+    def startTest(self, test):
+        zealot_setup()
+        return super().startTest(test)
+
+    def addError(self, test, err) -> None:
+        zealot_teardown()
+        return super().addError(test, err)
+
+    def addFailure(self, test, err) -> None:
+        zealot_teardown()
+        return super().addFailure(test, err)
+
+    def addSuccess(self, test):
+        zealot_teardown()
+        return super().addSuccess(test)
+
+class ZealotTestRunner(DiscoverRunner):
+    def get_resultclass(self):
+        return ZealotTestResult
+
+
+# And in your settings:
+TEST_RUNNER = (
+    "myapp.testing.test_runners.ZealotTestRunner"
+)
+```
+
+### Generic setup
+
+If you also want to detect N+1s in other places not covered here, you can use the `setup` and
+`teardown` functions, or the `zealot_context` context manager:
+
+```python
+from zealot import setup, teardown, zealot_context
+
+
+def foo():
+    setup()
+    try:
+        # your code goes here
+    finally:
+        teardown()
+
+
+@zealot_context()
+def bar():
+    # your code goes here
+
+
+def baz():
+    with zealot_context():
+        # your code goes here
+```
+
 ## Configuration
 
-By default, any issues detected by `zealot` will raise a `ZealotError`. If you'd
+By default, any issues detected by zealot will raise a `ZealotError`. If you'd
 rather log any detected N+1s, you can set:
 
 ```
@@ -87,7 +144,7 @@ threshold, set the following in your Django settings.
 ZEALOT_NPLUSONE_THRESHOLD = 3
 ```
 
-To handle false positives, you can temporarily disable `zealot` in parts of your code
+To handle false positives, you can temporarily disable zealot in parts of your code
 using a context manager:
 
 ```python
