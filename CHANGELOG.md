@@ -1,11 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Added
-
-- Add support for Python 3.9+
-
 ## [0.2.0](https://github.com/taobojlen/zealot/compare/v0.1.2...v0.2.0) (2024-07-06)
 
 
