@@ -5,6 +5,7 @@
 ### Fixed
 
 - Handle empty querysets
+- Handle incorrectly-used `.prefetch_related()` when `.select_related()` should have been used
 
 ## 0.1.1 - 2024-07-05
 

@@ -42,6 +42,19 @@ def test_detects_nplusone_in_forward_many_to_one_iterator():
         _ = post.author.username
 
 
+@zealot_context()
+def test_handles_prefetch_instead_of_select_related_in_forward_many_to_one():
+    user_1, user_2 = UserFactory.create_batch(2)
+    PostFactory(author=user_1)
+    PostFactory(author=user_2)
+    with CaptureQueriesContext(connection) as ctx:
+        # this should be a select_related! but we need to handle it even if someone
+        # has accidentally used the wrong method.
+        for post in Post.objects.prefetch_related("author").all():
+            _ = post.author.username
+        assert len(ctx.captured_queries) == 2
+
+
 def test_no_false_positive_when_loading_single_object_forward_many_to_one():
     user = UserFactory.create()
     post_1, post_2 = PostFactory.create_batch(2, author=user)
@@ -146,6 +159,19 @@ def test_detects_nplusone_in_forward_one_to_one_iterator():
         _ = profile.user.username
 
 
+@zealot_context()
+def test_handles_prefetch_instead_of_select_related_in_forward_one_to_one():
+    user_1, user_2 = UserFactory.create_batch(2)
+    ProfileFactory.create(user=user_1)
+    ProfileFactory.create(user=user_2)
+    with CaptureQueriesContext(connection) as ctx:
+        # this should be a select_related! but we need to handle it even if someone
+        # has accidentally used the wrong method.
+        for profile in Profile.objects.prefetch_related("user").all():
+            _ = profile.user.username
+        assert len(ctx.captured_queries) == 2
+
+
 def test_no_false_positive_when_loading_single_object_forward_one_to_one():
     user_1, user_2 = UserFactory.create_batch(2)
     profile_1 = ProfileFactory.create(user=user_1)
@@ -202,6 +228,20 @@ def test_detects_nplusone_in_reverse_one_to_one_iterator():
 
     for user in User.objects.select_related("profile").iterator(chunk_size=2):
         _ = user.profile.display_name
+
+
+@zealot_context()
+def test_handles_prefetch_instead_of_select_related_in_reverse_one_to_one():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    ProfileFactory.create(user=user_1)
+    ProfileFactory.create(user=user_2)
+
+    with CaptureQueriesContext(connection) as ctx:
+        # this should be a select_related! but we need to handle it even if someone
+        # has accidentally used the wrong method.
+        for user in User.objects.prefetch_related("profile").all():
+            _ = user.profile.display_name
+        assert len(ctx.captured_queries) == 2
 
 
 def test_no_false_positive_when_loading_single_object_reverse_one_to_one():
@@ -396,6 +436,24 @@ def test_detects_nplusone_due_to_deferred_fields_in_iterator():
         .iterator(chunk_size=2)
     ):
         _ = post.author.username
+
+
+@zealot_context()
+def test_handles_prefetch_instead_of_select_related_with_deferred_fields():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    with CaptureQueriesContext(connection) as ctx:
+        # this should be a select_related! but we need to handle it even if someone
+        # has accidentally used the wrong method.
+        for post in (
+            Post.objects.all()
+            .prefetch_related("author")
+            .only("author__username")
+        ):
+            _ = post.author.username
+        assert len(ctx.captured_queries) == 2
 
 
 def test_has_configurable_threshold(settings):

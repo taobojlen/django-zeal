@@ -102,12 +102,18 @@ def patch_forward_many_to_one_descriptor():
     def parser(context: QuerysetContext) -> QuerySource:
         assert "args" in context
         descriptor = context["args"][0]
-        assert "kwargs" in context
-        instance = context["kwargs"]["instance"]
+
+        if "kwargs" in context:
+            instance = context["kwargs"]["instance"]
+            instance_key = get_instance_key(instance)
+        else:
+            # `get_queryset` can in some cases be called without any
+            # kwargs. In those cases, we ignore the instance.
+            instance_key = None
         return {
             "model": descriptor.field.model,
             "field": descriptor.field.name,
-            "instance_key": get_instance_key(instance),
+            "instance_key": instance_key,
         }
 
     ForwardManyToOneDescriptor.get_queryset = patch_queryset_function(
@@ -174,12 +180,15 @@ def patch_reverse_one_to_one_descriptor():
         assert "args" in context
         descriptor = context["args"][0]
         field = descriptor.related.field
-        assert "kwargs" in context
-        instance = context["kwargs"]["instance"]
+        if "kwargs" in context:
+            instance = context["kwargs"]["instance"]
+            instance_key = get_instance_key(instance)
+        else:
+            instance_key = None
         return {
             "model": field.related_model,
             "field": field.remote_field.name,
-            "instance_key": get_instance_key(instance),
+            "instance_key": instance_key,
         }
 
     ReverseOneToOneDescriptor.get_queryset = patch_queryset_function(

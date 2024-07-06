@@ -17,7 +17,7 @@ from .errors import NPlusOneError, ZealotError
 class QuerySource(TypedDict):
     model: type[models.Model]
     field: str
-    instance_key: str  # e.g. `User:123`
+    instance_key: str | None  # e.g. `User:123`
 
 
 _is_in_context = ContextVar("in_context", default=False)
@@ -86,7 +86,9 @@ class NPlusOneListener(Listener):
     def error_class(self):
         return NPlusOneError
 
-    def notify(self, model: Type[models.Model], field: str, instance_key: str):
+    def notify(
+        self, model: Type[models.Model], field: str, instance_key: str | None
+    ):
         if not _is_in_context.get():
             return
 
