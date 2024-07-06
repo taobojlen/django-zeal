@@ -26,6 +26,22 @@ def test_detects_nplusone_in_forward_many_to_one():
         _ = post.author.username
 
 
+@zealot_context()
+def test_detects_nplusone_in_forward_many_to_one_iterator():
+    for _ in range(4):
+        user = UserFactory.create()
+        PostFactory.create(author=user)
+
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+    ):
+        for post in Post.objects.all().iterator(chunk_size=2):
+            _ = post.author.username
+
+    for post in Post.objects.select_related("author").iterator(chunk_size=2):
+        _ = post.author.username
+
+
 def test_no_false_positive_when_loading_single_object_forward_many_to_one():
     user = UserFactory.create()
     post_1, post_2 = PostFactory.create_batch(2, author=user)
@@ -72,6 +88,21 @@ def test_detects_nplusone_in_reverse_many_to_one():
         _ = list(user.posts.all())
 
 
+@zealot_context()
+def test_detects_nplusone_in_reverse_many_to_one_iterator():
+    for _ in range(4):
+        user = UserFactory.create()
+        PostFactory.create(author=user)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.posts")
+    ):
+        for user in User.objects.all().iterator(chunk_size=2):
+            _ = list(user.posts.all())
+
+    for user in User.objects.prefetch_related("posts").iterator(chunk_size=2):
+        _ = list(user.posts.all())
+
+
 def test_no_false_positive_when_calling_reverse_many_to_one_twice():
     user = UserFactory.create()
     PostFactory.create(author=user)
@@ -95,6 +126,23 @@ def test_detects_nplusone_in_forward_one_to_one():
             _ = profile.user.username
 
     for profile in Profile.objects.select_related("user").all():
+        _ = profile.user.username
+
+
+@zealot_context()
+def test_detects_nplusone_in_forward_one_to_one_iterator():
+    for _ in range(4):
+        user = UserFactory.create()
+        ProfileFactory.create(user=user)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on Profile.user")
+    ):
+        for profile in Profile.objects.all().iterator(chunk_size=2):
+            _ = profile.user.username
+
+    for profile in Profile.objects.select_related("user").iterator(
+        chunk_size=2
+    ):
         _ = profile.user.username
 
 
@@ -141,6 +189,21 @@ def test_detects_nplusone_in_reverse_one_to_one():
         _ = user.profile.display_name
 
 
+@zealot_context()
+def test_detects_nplusone_in_reverse_one_to_one_iterator():
+    for _ in range(4):
+        user = UserFactory.create()
+        ProfileFactory.create(user=user)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.profile")
+    ):
+        for user in User.objects.all().iterator(chunk_size=2):
+            _ = user.profile.display_name
+
+    for user in User.objects.select_related("profile").iterator(chunk_size=2):
+        _ = user.profile.display_name
+
+
 def test_no_false_positive_when_loading_single_object_reverse_one_to_one():
     user_1, user_2 = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
@@ -184,6 +247,24 @@ def test_detects_nplusone_in_forward_many_to_many():
         _ = list(user.following.all())
 
 
+@zealot_context()
+def test_detects_nplusone_in_forward_many_to_many_iterator():
+    influencer = UserFactory.create()
+    users = UserFactory.create_batch(4)
+    influencer.followers.set(users)  # type: ignore
+
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.following")
+    ):
+        for user in User.objects.iterator(chunk_size=2):
+            _ = list(user.following.all())
+
+    for user in User.objects.prefetch_related("following").iterator(
+        chunk_size=2
+    ):
+        _ = list(user.following.all())
+
+
 def test_no_false_positive_when_loading_single_object_forward_many_to_many():
     user_1, user_2 = UserFactory.create_batch(2)
     user_1.following.add(user_2)
@@ -217,6 +298,23 @@ def test_detects_nplusone_in_reverse_many_to_many():
             _ = list(user.followers.all())
 
     for user in User.objects.prefetch_related("followers").all():
+        _ = list(user.followers.all())
+
+
+@zealot_context()
+def test_detects_nplusone_in_reverse_many_to_many_iterator():
+    follower = UserFactory.create()
+    users = UserFactory.create_batch(4)
+    follower.following.set(users)  # type: ignore
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.followers")
+    ):
+        for user in User.objects.all().iterator(chunk_size=2):
+            _ = list(user.followers.all())
+
+    for user in (
+        User.objects.prefetch_related("followers").all().iterator(chunk_size=2)
+    ):
         _ = list(user.followers.all())
 
 
@@ -271,6 +369,31 @@ def test_detects_nplusone_due_to_deferred_fields():
 
     for post in (
         Post.objects.all().select_related("author").only("author__username")
+    ):
+        _ = post.author.username
+
+
+@zealot_context()
+def test_detects_nplusone_due_to_deferred_fields_in_iterator():
+    for _ in range(4):
+        user = UserFactory.create()
+        PostFactory.create(author=user)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.username")
+    ):
+        for post in (
+            Post.objects.all()
+            .select_related("author")
+            .only("author__id")
+            .iterator(chunk_size=2)
+        ):
+            _ = post.author.username
+
+    for post in (
+        Post.objects.all()
+        .select_related("author")
+        .only("author__username")
+        .iterator(chunk_size=2)
     ):
         _ = post.author.username
 
