@@ -92,6 +92,7 @@ If you use unittest, add a custom test runner:
 
 ```python
 # In e.g. `myapp/testing/test_runners.py`
+from zealot import setup as zealot_setup, teardown as zealot_teardown
 from django.test.runner import DiscoverRunner
 from unittest.runner import TextTestResult
 
