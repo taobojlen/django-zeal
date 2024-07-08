@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/taobojlen/zealot/compare/v0.2.0...v0.2.1) (2024-07-08)
+
+
+### Bug Fixes
+
+* zealot_ignore always takes precedence ([e61d060](https://github.com/taobojlen/zealot/commit/e61d060c74ed32193c2c86f1b7f20929a37402a1))
+
 ## [0.2.0](https://github.com/taobojlen/zealot/compare/v0.1.2...v0.2.0) (2024-07-06)
 
 
