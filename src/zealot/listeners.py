@@ -4,7 +4,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from fnmatch import fnmatch
-from typing import Optional, TypedDict
+from typing import Optional, TypedDict, Union
 
 from django.conf import settings
 from django.db import models
@@ -20,7 +20,11 @@ class QuerySource(TypedDict):
     instance_key: Optional[str]  # e.g. `User:123`
 
 
-_is_in_context = ContextVar("in_context", default=False)
+# None means not initialized
+# bool means initialized, in/not in zealot context
+_is_in_context: ContextVar[Union[None, bool]] = ContextVar(
+    "in_context", default=None
+)
 
 logger = logging.getLogger("zealot")
 
@@ -134,7 +138,12 @@ n_plus_one_listener = NPlusOneListener()
 
 
 def setup() -> Token:
-    return _is_in_context.set(True)
+    new_context_value = True
+    if _is_in_context.get() is False:
+        # if we're already in an ignore-context, we don't want to override
+        # it.
+        new_context_value = False
+    return _is_in_context.set(new_context_value)
 
 
 def teardown(token: Optional[Token] = None):

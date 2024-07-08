@@ -467,9 +467,7 @@ def test_works_in_web_requests(client):
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
-    # we use zealot_ignore, but the test should still pass because the middleware
-    # sets up a zealot_context
-    with zealot_ignore(), pytest.raises(NPlusOneError):
+    with pytest.raises(NPlusOneError):
         response = client.get("/users/")
 
     # but multiple requests work fine
