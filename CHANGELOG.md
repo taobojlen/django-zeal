@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/taobojlen/zealot/compare/v0.2.1...v0.2.2) (2024-07-15)
+
+
+### Bug Fixes
+
+* don't alert from calls on different lines ([7f7bda7](https://github.com/taobojlen/zealot/commit/7f7bda709e5fff2e953ddac0277d684255732e7c))
+
 ## [0.2.1](https://github.com/taobojlen/zealot/compare/v0.2.0...v0.2.1) (2024-07-08)
 
 
