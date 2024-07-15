@@ -81,7 +81,7 @@ class Listener(ABC):
 
 class NPlusOneListener(Listener):
     ignored_instances: set[str]
-    counts: dict[tuple[type[models.Model], str], int]
+    counts: dict[tuple[type[models.Model], str, str], int]
 
     def __init__(self):
         self.reset()
@@ -99,7 +99,8 @@ class NPlusOneListener(Listener):
         if not _is_in_context.get():
             return
 
-        key = (model, field)
+        caller = get_caller()
+        key = (model, field, f"{caller.filename}:{caller.lineno}")
         self.counts[key] += 1
         count = self.counts[key]
         if (
