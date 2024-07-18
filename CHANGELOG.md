@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/taobojlen/zealot/compare/v0.2.2...v0.2.3) (2024-07-18)
+
+
+### Bug Fixes
+
+* ensure context is reset after leaving ([#8](https://github.com/taobojlen/zealot/issues/8)) ([f45cabb](https://github.com/taobojlen/zealot/commit/f45cabb2abcabce34cd5aed163f7f95c71256e2c))
+
 ## [0.2.2](https://github.com/taobojlen/zealot/compare/v0.2.1...v0.2.2) (2024-07-15)
 
 
