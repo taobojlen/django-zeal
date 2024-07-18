@@ -3,8 +3,9 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
+from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Optional, TypedDict, Union
+from typing import Optional, TypedDict
 
 from django.conf import settings
 from django.db import models
@@ -20,10 +21,24 @@ class QuerySource(TypedDict):
     instance_key: Optional[str]  # e.g. `User:123`
 
 
-# None means not initialized
-# bool means initialized, in/not in zealot context
-_is_in_context: ContextVar[Union[None, bool]] = ContextVar(
-    "in_context", default=None
+# tuple of (model, field, caller)
+CountsKey = tuple[type[models.Model], str, str]
+
+
+@dataclass
+class NPlusOneContext:
+    # None means not initialized
+    # bool means initialized, in/not in zealot context
+    is_in_context: Optional[bool] = None
+    counts: dict[CountsKey, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
+    ignored: set[str] = field(default_factory=set)
+
+
+_nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
+    "nplusone",
+    default=NPlusOneContext(),
 )
 
 logger = logging.getLogger("zealot")
@@ -37,9 +52,6 @@ class AllowListEntry(TypedDict):
 class Listener(ABC):
     @abstractmethod
     def notify(self, *args, **kwargs): ...
-
-    @abstractmethod
-    def reset(self): ...
 
     @property
     @abstractmethod
@@ -80,12 +92,6 @@ class Listener(ABC):
 
 
 class NPlusOneListener(Listener):
-    ignored_instances: set[str]
-    counts: dict[tuple[type[models.Model], str, str], int]
-
-    def __init__(self):
-        self.reset()
-
     @property
     def error_class(self):
         return NPlusOneError
@@ -96,19 +102,18 @@ class NPlusOneListener(Listener):
         field: str,
         instance_key: Optional[str],
     ):
-        if not _is_in_context.get():
+        context = _nplusone_context.get()
+        if not context.is_in_context:
             return
 
         caller = get_caller()
         key = (model, field, f"{caller.filename}:{caller.lineno}")
-        self.counts[key] += 1
-        count = self.counts[key]
-        if (
-            count >= self._threshold
-            and instance_key not in self.ignored_instances
-        ):
+        context.counts[key] += 1
+        count = context.counts[key]
+        if count >= self._threshold and instance_key not in context.ignored:
             message = f"N+1 detected on {model.__name__}.{field}"
             self._alert(model, field, message)
+        _nplusone_context.set(context)
 
     def ignore(self, instance_key: Optional[str]):
         """
@@ -117,15 +122,13 @@ class NPlusOneListener(Listener):
         This is used when the given instance is singly-loaded, e.g. via `.first()`
         or `.get()`. This is to prevent false positives.
         """
-        if not _is_in_context.get():
+        context = _nplusone_context.get()
+        if not context.is_in_context:
             return
         if not instance_key:
             return
-        self.ignored_instances.add(instance_key)
-
-    def reset(self):
-        self.counts = defaultdict(int)
-        self.ignored_instances = set()
+        context.ignored.add(instance_key)
+        _nplusone_context.set(context)
 
     @property
     def _threshold(self) -> int:
@@ -138,21 +141,25 @@ class NPlusOneListener(Listener):
 n_plus_one_listener = NPlusOneListener()
 
 
-def setup() -> Token:
-    new_context_value = True
-    if _is_in_context.get() is False:
-        # if we're already in an ignore-context, we don't want to override
-        # it.
-        new_context_value = False
-    return _is_in_context.set(new_context_value)
+def setup() -> Optional[Token]:
+    # if we're already in an ignore-context, we don't want to override
+    # it.
+    context = _nplusone_context.get()
+    if context.is_in_context is False:
+        new_is_in_context = False
+    else:
+        new_is_in_context = True
+
+    return _nplusone_context.set(
+        NPlusOneContext(is_in_context=new_is_in_context)
+    )
 
 
 def teardown(token: Optional[Token] = None):
-    n_plus_one_listener.reset()
     if token:
-        _is_in_context.reset(token)
+        _nplusone_context.reset(token)
     else:
-        _is_in_context.set(False)
+        _nplusone_context.set(NPlusOneContext())
 
 
 @contextmanager
@@ -166,8 +173,14 @@ def zealot_context():
 
 @contextmanager
 def zealot_ignore():
-    token = _is_in_context.set(False)
+    old_context = _nplusone_context.get()
+    new_context = NPlusOneContext(
+        counts=old_context.counts.copy(),
+        ignored=old_context.ignored.copy(),
+        is_in_context=False,
+    )
+    token = _nplusone_context.set(new_context)
     try:
         yield
     finally:
-        _is_in_context.reset(token)
+        _nplusone_context.reset(token)
