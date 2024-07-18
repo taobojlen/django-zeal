@@ -3,8 +3,8 @@ import re
 
 import pytest
 from djangoproject.social.models import Post, User
-from zealot import zealot_context, zealot_ignore
-from zealot.errors import NPlusOneError
+from zealot import NPlusOneError, zealot_context, zealot_ignore
+from zealot.listeners import _nplusone_context, n_plus_one_listener
 
 from .factories import PostFactory, UserFactory
 
@@ -105,11 +105,52 @@ def test_ignore_context_takes_precedence():
                 _ = list(user.posts.all())
 
 
-def test_ignores_calls_on_different_lines():
+def test_reverts_to_previous_state_when_leaving_zealot_ignore():
+    # we are currently in a zealot context
+    assert _nplusone_context.get().is_in_context is True
+    with zealot_ignore():
+        assert _nplusone_context.get().is_in_context is False
+    assert _nplusone_context.get().is_in_context is True
+
+    # if we start off *without* being in a context, that also gets reset
+    context = _nplusone_context.get()
+    context.is_in_context = None
+    _nplusone_context.set(context)
+
+    assert _nplusone_context.get().is_in_context is None
+    with zealot_ignore():
+        assert _nplusone_context.get().is_in_context is False
+    assert _nplusone_context.get().is_in_context is None
+
+
+def test_resets_state_in_nested_context():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
 
-    # this should *not* raise an exception
-    _a = list(user_1.posts.all())
-    _b = list(user_2.posts.all())
+    # we're already in a zealot_context within each test, so let's set
+    # some state.
+    n_plus_one_listener.ignore("Test:1")
+    n_plus_one_listener.notify(Post, "test_field", "Post:1")
+
+    context = _nplusone_context.get()
+    assert context.ignored == {"Test:1"}
+    assert list(context.counts.values()) == [1]
+
+    with zealot_context():
+        # new context, fresh state
+        context = _nplusone_context.get()
+        assert context.ignored == set()
+        assert list(context.counts.values()) == []
+
+        n_plus_one_listener.ignore("NestedTest:1")
+        n_plus_one_listener.notify(Post, "nested_test_field", "Post:1")
+
+        context = _nplusone_context.get()
+        assert context.ignored == {"NestedTest:1"}
+        assert list(context.counts.values()) == [1]
+
+    # back outside the nested context, we're back to the old state
+    context = _nplusone_context.get()
+    assert context.ignored == {"Test:1"}
+    assert list(context.counts.values()) == [1]

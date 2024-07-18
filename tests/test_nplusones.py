@@ -475,3 +475,13 @@ def test_works_in_web_requests(client):
     assert response.status_code == 200
     response = client.get(f"/user/{user_2.pk}/")
     assert response.status_code == 200
+
+
+def test_ignores_calls_on_different_lines():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    # this should *not* raise an exception
+    _a = list(user_1.posts.all())
+    _b = list(user_2.posts.all())
