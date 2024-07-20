@@ -1,8 +1,8 @@
 import pytest
-from zealot import zealot_context
+from zeal import zeal_context
 
 
 @pytest.fixture(scope="function", autouse=True)
-def use_zealot():
-    with zealot_context():
+def use_zeal():
+    with zeal_context():
         yield

@@ -10,9 +10,9 @@ from typing import Optional, TypedDict
 from django.conf import settings
 from django.db import models
 
-from zealot.util import get_caller
+from zeal.util import get_caller
 
-from .errors import NPlusOneError, ZealotError
+from .errors import NPlusOneError, ZealError
 
 
 class QuerySource(TypedDict):
@@ -28,7 +28,7 @@ CountsKey = tuple[type[models.Model], str, str]
 @dataclass
 class NPlusOneContext:
     # None means not initialized
-    # bool means initialized, in/not in zealot context
+    # bool means initialized, in/not in zeal context
     is_in_context: Optional[bool] = None
     counts: dict[CountsKey, int] = field(
         default_factory=lambda: defaultdict(int)
@@ -41,7 +41,7 @@ _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
     default=NPlusOneContext(),
 )
 
-logger = logging.getLogger("zealot")
+logger = logging.getLogger("zeal")
 
 
 class AllowListEntry(TypedDict):
@@ -55,20 +55,18 @@ class Listener(ABC):
 
     @property
     @abstractmethod
-    def error_class(self) -> type[ZealotError]: ...
+    def error_class(self) -> type[ZealError]: ...
 
     @property
     def _allowlist(self) -> list[AllowListEntry]:
-        if hasattr(settings, "ZEALOT_ALLOWLIST"):
-            return settings.ZEALOT_ALLOWLIST
+        if hasattr(settings, "ZEAL_ALLOWLIST"):
+            return settings.ZEAL_ALLOWLIST
         else:
             return []
 
     def _alert(self, model: type[models.Model], field: str, message: str):
         should_error = (
-            settings.ZEALOT_RAISE
-            if hasattr(settings, "ZEALOT_RAISE")
-            else True
+            settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
         )
         is_allowlisted = False
         for entry in self._allowlist:
@@ -132,8 +130,8 @@ class NPlusOneListener(Listener):
 
     @property
     def _threshold(self) -> int:
-        if hasattr(settings, "ZEALOT_NPLUSONE_THRESHOLD"):
-            return settings.ZEALOT_NPLUSONE_THRESHOLD
+        if hasattr(settings, "ZEAL_NPLUSONE_THRESHOLD"):
+            return settings.ZEAL_NPLUSONE_THRESHOLD
         else:
             return 2
 
@@ -163,7 +161,7 @@ def teardown(token: Optional[Token] = None):
 
 
 @contextmanager
-def zealot_context():
+def zeal_context():
     token = setup()
     try:
         yield
@@ -172,7 +170,7 @@ def zealot_context():
 
 
 @contextmanager
-def zealot_ignore():
+def zeal_ignore():
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
         counts=old_context.counts.copy(),

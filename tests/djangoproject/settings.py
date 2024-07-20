@@ -11,10 +11,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "djangoproject.social",
-    "zealot",
+    "zeal",
 ]
 
-MIDDLEWARE = ["zealot.middleware.zealot_middleware"]
+MIDDLEWARE = ["zeal.middleware.zeal_middleware"]
 
 ROOT_URLCONF = "djangoproject.urls"
 

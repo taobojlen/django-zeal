@@ -1,9 +1,9 @@
-from .listeners import zealot_context
+from .listeners import zeal_context
 
 
-def zealot_middleware(get_response):
+def zeal_middleware(get_response):
     def middleware(request):
-        with zealot_context():
+        with zeal_context():
             response = get_response(request)
         return response
 

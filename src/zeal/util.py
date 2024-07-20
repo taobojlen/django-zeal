@@ -2,13 +2,13 @@ import inspect
 
 from django.db.models.sql import Query
 
-PATTERNS = ["site-packages", "zealot/listeners.py", "zealot/patch.py"]
+PATTERNS = ["site-packages", "zeal/listeners.py", "zeal/patch.py"]
 
 
 def get_caller() -> inspect.FrameInfo:
     """
     Returns the filename and line number of the current caller,
-    excluding any code in site-packages or zealot.
+    excluding any code in site-packages or zeal.
     """
     return next(
         frame

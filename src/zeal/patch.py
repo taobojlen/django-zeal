@@ -13,7 +13,7 @@ from django.db.models.fields.related_descriptors import (
 from django.db.models.query import QuerySet
 from django.db.models.query_utils import DeferredAttribute
 
-from zealot.util import is_single_query
+from zeal.util import is_single_query
 
 from .listeners import QuerySource, n_plus_one_listener
 
@@ -88,7 +88,7 @@ def patch_queryset_function(
 
         # don't patch the same queryset more than once
         if (
-            hasattr(queryset, "__zealot_patched") and queryset.__zealot_patched  # type: ignore
+            hasattr(queryset, "__zeal_patched") and queryset.__zeal_patched  # type: ignore
         ):
             return queryset
         if args and args != context.get("args"):
@@ -103,7 +103,7 @@ def patch_queryset_function(
         queryset._fetch_all = patch_queryset_fetch_all(
             queryset, parser, context
         )
-        queryset.__zealot_patched = True  # type: ignore
+        queryset.__zeal_patched = True  # type: ignore
         return queryset
 
     return wrapper

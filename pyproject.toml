@@ -1,5 +1,5 @@
 [project]
-name = "zealot"
+name = "zeal"
 version = "0.2.3"
 description = "Detect N+1s in your Django app"
 readme = "README.md"

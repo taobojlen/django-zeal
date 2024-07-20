@@ -1,9 +1,9 @@
-# zealot
+# zeal
 
 Catch N+1 queries in your Django project.
 
 ![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)
-![PyPI - Version](https://img.shields.io/pypi/v/zealot?color=lightgrey)
+![PyPI - Version](https://img.shields.io/pypi/v/zeal?color=lightgrey)
 
 ## Features
 
@@ -24,17 +24,17 @@ It's not exactly a fork, but not far from it.
 First:
 
 ```
-pip install zealot
+pip install zeal
 ```
 
-Then, add zealot to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
+Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
 don't want to run it in production: I haven't profiled it but it will have a performance
 impact.
 
 ```python
 if DEBUG:
-    INSTALLED_APPS.append("zealot")
-    MIDDLEWARE.append("zealot.middleware.zealot_middleware")
+    INSTALLED_APPS.append("zeal")
+    MIDDLEWARE.append("zeal.middleware.zeal_middleware")
 ```
 
 This will detect N+1s that happen in web requests. To catch N+1s in more places,
@@ -46,22 +46,22 @@ If you use Celery, you can configure this using [signals](https://docs.celeryq.d
 
 ```python
 from celery.signals import task_prerun, task_postrun
-from zealot import setup, teardown
+from zeal import setup, teardown
 from django.conf import settings
 
 @task_prerun.connect()
-def setup_zealot(*args, **kwargs):
+def setup_zeal(*args, **kwargs):
     setup()
 
 @task_postrun.connect()
-def teardown_zealot(*args, **kwargs):
+def teardown_zeal(*args, **kwargs):
     teardown()
 ```
 
 ### Tests
 
 Django [runs tests with `DEBUG=False`](https://docs.djangoproject.com/en/5.0/topics/testing/overview/#other-test-conditions),
-so to run zealot in your tests, you'll first need to ensure it's added to your
+so to run zeal in your tests, you'll first need to ensure it's added to your
 `INSTALLED_APPS` and `MIDDLEWARE`. You could do something like:
 
 ```python
@@ -69,22 +69,22 @@ import sys
 
 TEST = "test" in sys.argv
 if DEBUG or TEST:
-    INSTALLED_APPS.append("zealot")
-    MIDDLEWARE.append("zealot.middleware.zealot_middleware")
+    INSTALLED_APPS.append("zeal")
+    MIDDLEWARE.append("zeal.middleware.zeal_middleware")
 ```
 
-This will enable zealot in any tests that go through your middleware. If you want to enable
+This will enable zeal in any tests that go through your middleware. If you want to enable
 it in _all_ tests, you need to do a bit more work.
 
 If you use pytest, use a fixture in your `conftest.py`:
 
 ```python
 import pytest
-from zealot import zealot_context
+from zeal import zeal_context
 
 @pytest.fixture(scope="function", autouse=True)
-def use_zealot():
-    with zealot_context():
+def use_zeal():
+    with zeal_context():
         yield
 ```
 
@@ -92,45 +92,45 @@ If you use unittest, add a custom test runner:
 
 ```python
 # In e.g. `myapp/testing/test_runners.py`
-from zealot import setup as zealot_setup, teardown as zealot_teardown
+from zeal import setup as zeal_setup, teardown as zeal_teardown
 from django.test.runner import DiscoverRunner
 from unittest.runner import TextTestResult
 
-class ZealotTestResult(TextTestResult):
+class ZealTestResult(TextTestResult):
     def startTest(self, test):
-        zealot_setup()
+        zeal_setup()
         return super().startTest(test)
 
     def addError(self, test, err) -> None:
-        zealot_teardown()
+        zeal_teardown()
         return super().addError(test, err)
 
     def addFailure(self, test, err) -> None:
-        zealot_teardown()
+        zeal_teardown()
         return super().addFailure(test, err)
 
     def addSuccess(self, test):
-        zealot_teardown()
+        zeal_teardown()
         return super().addSuccess(test)
 
-class ZealotTestRunner(DiscoverRunner):
+class ZealTestRunner(DiscoverRunner):
     def get_resultclass(self):
-        return ZealotTestResult
+        return ZealTestResult
 
 
 # And in your settings:
 TEST_RUNNER = (
-    "myapp.testing.test_runners.ZealotTestRunner"
+    "myapp.testing.test_runners.ZealTestRunner"
 )
 ```
 
 ### Generic setup
 
 If you also want to detect N+1s in other places not covered here, you can use the `setup` and
-`teardown` functions, or the `zealot_context` context manager:
+`teardown` functions, or the `zeal_context` context manager:
 
 ```python
-from zealot import setup, teardown, zealot_context
+from zeal import setup, teardown, zeal_context
 
 
 def foo():
@@ -141,47 +141,47 @@ def foo():
         teardown()
 
 
-@zealot_context()
+@zeal_context()
 def bar():
     # your code goes here
 
 
 def baz():
-    with zealot_context():
+    with zeal_context():
         # your code goes here
 ```
 
 ## Configuration
 
-By default, any issues detected by zealot will raise a `ZealotError`. If you'd
+By default, any issues detected by zeal will raise a `ZealError`. If you'd
 rather log any detected N+1s, you can set:
 
 ```python
-ZEALOT_RAISE = False
+ZEAL_RAISE = False
 ```
 
 N+1s will be reported when the same query is executed twice. To configure this
 threshold, set the following in your Django settings.
 
 ```python
-ZEALOT_NPLUSONE_THRESHOLD = 3
+ZEAL_NPLUSONE_THRESHOLD = 3
 ```
 
-To handle false positives, you can temporarily disable zealot in parts of your code
+To handle false positives, you can temporarily disable zeal in parts of your code
 using a context manager:
 
 ```python
-from zealot import zealot_ignore
+from zeal import zeal_ignore
 
-with zealot_ignore():
-    # code in this block will not log/raise zealot errors
+with zeal_ignore():
+    # code in this block will not log/raise zeal errors
 ```
 
 Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can
 add it to your settings:
 
 ```python
-ZEALOT_ALLOWLIST = [
+ZEAL_ALLOWLIST = [
     {"model": "polls.Question", "field": "options"},
 
     # you can use fnmatch syntax in the model/field, too
@@ -194,13 +194,13 @@ ZEALOT_ALLOWLIST = [
 
 ## Comparison to nplusone
 
-zealot borrows heavily from [`nplusone`](https://github.com/jmcarp/nplusone), but has some differences:
-- zealot also detects N+1 caused by using `.only()` and `.defer()`
+zeal borrows heavily from [`nplusone`](https://github.com/jmcarp/nplusone), but has some differences:
+- zeal also detects N+1 caused by using `.only()` and `.defer()`
 - it lets you configure your own threshold for what constitutes an N+1
 - it has slightly more helpful error messages that tell you where the N+1 occurred
-- `nplusone` patches the Django ORM even in production when it's not enabled. zealot does not!
+- `nplusone` patches the Django ORM even in production when it's not enabled. zeal does not!
 - `nplusone` appears to be abandoned at this point.
-- however, zealot only works with Django, whereas `nplusone` can also be used with SQLAlchemy.
+- however, zeal only works with Django, whereas `nplusone` can also be used with SQLAlchemy.
 
 ## Contributing
 
