@@ -1,5 +1,5 @@
 [project]
-name = "zeal"
+name = "django-zeal"
 version = "1.0.0"
 description = "Detect N+1s in your Django app"
 readme = "README.md"
