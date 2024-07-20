@@ -177,6 +177,13 @@ with zeal_ignore():
     # code in this block will not log/raise zeal errors
 ```
 
+If you only want to ignore a specific N+1, you can pass in a list of models/fields to ignore:
+
+```python
+with zeal_ignore([{"model": "polls.Question", "field": "options"}]):
+    # code in this block will ignore N+1s on Question.options
+```
+
 Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can
 add it to your settings:
 

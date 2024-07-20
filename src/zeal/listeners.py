@@ -25,15 +25,18 @@ class QuerySource(TypedDict):
 CountsKey = tuple[type[models.Model], str, str]
 
 
+class AllowListEntry(TypedDict):
+    model: str
+    field: Optional[str]
+
+
 @dataclass
 class NPlusOneContext:
-    # None means not initialized
-    # bool means initialized, in/not in zeal context
-    is_in_context: Optional[bool] = None
     counts: dict[CountsKey, int] = field(
         default_factory=lambda: defaultdict(int)
     )
     ignored: set[str] = field(default_factory=set)
+    allowlist: list[AllowListEntry] = field(default_factory=list)
 
 
 _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
@@ -42,11 +45,6 @@ _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
 )
 
 logger = logging.getLogger("zeal")
-
-
-class AllowListEntry(TypedDict):
-    model: str
-    field: Optional[str]
 
 
 class Listener(ABC):
@@ -60,9 +58,11 @@ class Listener(ABC):
     @property
     def _allowlist(self) -> list[AllowListEntry]:
         if hasattr(settings, "ZEAL_ALLOWLIST"):
-            return settings.ZEAL_ALLOWLIST
+            settings_allowlist = settings.ZEAL_ALLOWLIST
         else:
-            return []
+            settings_allowlist = []
+
+        return [*settings_allowlist, *_nplusone_context.get().allowlist]
 
     def _alert(self, model: type[models.Model], field: str, message: str):
         should_error = (
@@ -101,9 +101,6 @@ class NPlusOneListener(Listener):
         instance_key: Optional[str],
     ):
         context = _nplusone_context.get()
-        if not context.is_in_context:
-            return
-
         caller = get_caller()
         key = (model, field, f"{caller.filename}:{caller.lineno}")
         context.counts[key] += 1
@@ -121,8 +118,6 @@ class NPlusOneListener(Listener):
         or `.get()`. This is to prevent false positives.
         """
         context = _nplusone_context.get()
-        if not context.is_in_context:
-            return
         if not instance_key:
             return
         context.ignored.add(instance_key)
@@ -143,14 +138,7 @@ def setup() -> Optional[Token]:
     # if we're already in an ignore-context, we don't want to override
     # it.
     context = _nplusone_context.get()
-    if context.is_in_context is False:
-        new_is_in_context = False
-    else:
-        new_is_in_context = True
-
-    return _nplusone_context.set(
-        NPlusOneContext(is_in_context=new_is_in_context)
-    )
+    return _nplusone_context.set(NPlusOneContext(allowlist=context.allowlist))
 
 
 def teardown(token: Optional[Token] = None):
@@ -170,12 +158,15 @@ def zeal_context():
 
 
 @contextmanager
-def zeal_ignore():
+def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
+    if allowlist is None:
+        allowlist = [{"model": "*", "field": "*"}]
+
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
         counts=old_context.counts.copy(),
         ignored=old_context.ignored.copy(),
-        is_in_context=False,
+        allowlist=[*old_context.allowlist, *allowlist],
     )
     token = _nplusone_context.set(new_context)
     try:
