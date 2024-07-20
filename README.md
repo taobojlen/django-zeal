@@ -2,8 +2,8 @@
 
 Catch N+1 queries in your Django project.
 
-![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)
-![PyPI - Version](https://img.shields.io/pypi/v/django-zeal?color=lightgrey)
+[![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)](https://github.com/taobojlen/django-zeal/blob/main/LICENSE)
+[![PyPI - Version](https://img.shields.io/pypi/v/django-zeal?color=lightgrey)](https://pypi.org/project/django-zeal/)
 
 ## Features
 
