@@ -1,6 +1,6 @@
 [project]
 name = "zeal"
-version = "0.2.3"
+version = "1.0.0"
 description = "Detect N+1s in your Django app"
 readme = "README.md"
 license = { file = "LICENSE" }
