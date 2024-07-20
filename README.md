@@ -1,9 +1,9 @@
-# zeal
+# django-zeal
 
 Catch N+1 queries in your Django project.
 
 ![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)
-![PyPI - Version](https://img.shields.io/pypi/v/zeal?color=lightgrey)
+![PyPI - Version](https://img.shields.io/pypi/v/django-zeal?color=lightgrey)
 
 ## Features
 
@@ -24,7 +24,7 @@ It's not exactly a fork, but not far from it.
 First:
 
 ```
-pip install zeal
+pip install django-zeal
 ```
 
 Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
