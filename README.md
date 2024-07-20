@@ -192,6 +192,16 @@ ZEALOT_ALLOWLIST = [
 ]
 ```
 
+## Comparison to nplusone
+
+zealot borrows heavily from [`nplusone`](https://github.com/jmcarp/nplusone), but has some differences:
+- zealot also detects N+1 caused by using `.only()` and `.defer()`
+- it lets you configure your own threshold for what constitutes an N+1
+- it has slightly more helpful error messages that tell you where the N+1 occurred
+- `nplusone` patches the Django ORM even in production when it's not enabled. zealot does not!
+- `nplusone` appears to be abandoned at this point.
+- however, zealot only works with Django, whereas `nplusone` can also be used with SQLAlchemy.
+
 ## Contributing
 
 1. First, install [uv](https://github.com/astral-sh/uv).
