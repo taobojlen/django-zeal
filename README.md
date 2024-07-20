@@ -5,6 +5,8 @@ Catch N+1 queries in your Django project.
 [![Static Badge](https://img.shields.io/badge/license-MIT-brightgreen)](https://github.com/taobojlen/django-zeal/blob/main/LICENSE)
 [![PyPI - Version](https://img.shields.io/pypi/v/django-zeal?color=lightgrey)](https://pypi.org/project/django-zeal/)
 
+🔥 Battle-tested at [Cinder](https://www.cinder.co/)
+
 ## Features
 
 - Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`
@@ -17,7 +19,7 @@ Catch N+1 queries in your Django project.
 ## Acknowledgements
 
 This library draws heavily from jmcarp's [nplusone](https://github.com/jmcarp/nplusone/).
-It's not exactly a fork, but not far from it.
+It's not a fork, but a lot of the central concepts and initial code came from nplusone.
 
 ## Installation
 
