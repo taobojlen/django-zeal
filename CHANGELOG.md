@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/taobojlen/django-zeal/compare/v1.0.0...v1.1.0) (2024-07-20)
+
+
+### Features
+
+* allow ignoring specific models/fields in zeal_ignore ([#13](https://github.com/taobojlen/django-zeal/issues/13)) ([e51413b](https://github.com/taobojlen/django-zeal/commit/e51413ba5fe4d9a3c34409863e9888d873ff84fa))
+
 ## [1.0.0](https://github.com/taobojlen/zealot/compare/v0.2.3...v1.0.0) (2024-07-20)
 
 
