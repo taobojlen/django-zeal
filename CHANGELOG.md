@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0](https://github.com/taobojlen/zealot/compare/v0.2.3...v1.0.0) (2024-07-20)
+
+
+### ⚠ BREAKING CHANGES
+
+This project has been renamed to `zeal`. To migrate, replace `zealot` with `zeal` in your
+project's requirements. In your Django settings, replace `ZEALOT_ALLOWLIST`, `ZEALOT_RAISE`, etc.
+with `ZEAL_ALLOWLIST`, `ZEAL_RAISE`, and so on.
+In your code, replace `from zealot import ...` with `from zeal import ...`.
+
+
+### Miscellaneous Chores
+
+* rename to zeal ([cc429a2](https://github.com/taobojlen/zealot/commit/cc429a26bfede770db69429e8a11fc9e98fbb2a9))
+
 ## [0.2.3](https://github.com/taobojlen/zeal/compare/v0.2.2...v0.2.3) (2024-07-18)
 
 
