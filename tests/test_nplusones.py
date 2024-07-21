@@ -467,7 +467,9 @@ def test_works_in_web_requests(client):
     [user_1, user_2] = UserFactory.create_batch(2)
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
-    with pytest.raises(NPlusOneError):
+    with pytest.raises(
+        NPlusOneError, match=re.escape(r"N+1 detected on User.profile")
+    ):
         response = client.get("/users/")
 
     # but multiple requests work fine

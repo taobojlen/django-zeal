@@ -52,7 +52,9 @@ def test_can_exclude_with_allowlist(settings):
     for user in User.objects.all():
         _ = list(user.posts.all())
 
-    with pytest.raises(NPlusOneError):
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+    ):
         for post in Post.objects.all():
             _ = post.author
 
@@ -68,7 +70,9 @@ def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
     for user in User.objects.all():
         _ = list(user.posts.all())
 
-    with pytest.raises(NPlusOneError):
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+    ):
         for post in Post.objects.all():
             _ = post.author
 
@@ -84,7 +88,9 @@ def test_can_use_fnmatch_pattern_in_allowlist_field(settings):
     for user in User.objects.all():
         _ = list(user.posts.all())
 
-    with pytest.raises(NPlusOneError):
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+    ):
         for post in Post.objects.all():
             _ = post.author
 
@@ -158,19 +164,25 @@ def test_can_ignore_specific_models():
         for user in User.objects.all():
             _ = list(user.posts.all())
 
-        with pytest.raises(NPlusOneError):
+        with pytest.raises(
+            NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        ):
             # this is *not* allowlisted
             for post in Post.objects.all():
                 _ = post.author
 
     # if we ignore another field, we still raise
     with zeal_ignore([{"model": "social.User", "field": "foobar"}]):
-        with pytest.raises(NPlusOneError):
+        with pytest.raises(
+            NPlusOneError, match=re.escape("N+1 detected on User.posts")
+        ):
             for user in User.objects.all():
                 _ = list(user.posts.all())
 
     # outside of the context, we're back to normal
-    with pytest.raises(NPlusOneError):
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on User.posts")
+    ):
         for user in User.objects.all():
             _ = list(user.posts.all())
 
@@ -185,7 +197,9 @@ def test_context_specific_allowlist_merges():
         for user in User.objects.all():
             _ = list(user.posts.all())
 
-        with pytest.raises(NPlusOneError):
+        with pytest.raises(
+            NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        ):
             # this is *not* allowlisted
             for post in Post.objects.all():
                 _ = post.author
