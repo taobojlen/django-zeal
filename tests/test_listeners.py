@@ -1,5 +1,5 @@
-import logging
 import re
+import warnings
 
 import pytest
 from djangoproject.social.models import Post, User
@@ -17,16 +17,16 @@ def test_can_log_errors(settings, caplog):
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
-    with caplog.at_level(logging.WARNING):
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
         for user in User.objects.all():
             _ = list(user.posts.all())
-        assert (
-            re.search(
-                r"N\+1 detected on User\.posts at .*\/test_listeners\.py:22 in test_can_log_errors",
-                caplog.text,
-            )
-            is not None
-        ), f"{caplog.text} does not match regex"
+        assert len(w) == 1
+        assert issubclass(w[0].category, UserWarning)
+        assert re.search(
+            r"N\+1 detected on User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+            str(w[0].message),
+        )
 
 
 def test_errors_include_caller():

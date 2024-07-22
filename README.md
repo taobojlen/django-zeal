@@ -156,7 +156,7 @@ def baz():
 ## Configuration
 
 By default, any issues detected by zeal will raise a `ZealError`. If you'd
-rather log any detected N+1s, you can set:
+rather log any detected N+1s as warnings, you can set:
 
 ```python
 ZEAL_RAISE = False
