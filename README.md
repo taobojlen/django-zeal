@@ -203,13 +203,14 @@ ZEAL_ALLOWLIST = [
 
 ## Comparison to nplusone
 
-zeal borrows heavily from [`nplusone`](https://github.com/jmcarp/nplusone), but has some differences:
+zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but has some differences:
 - zeal also detects N+1 caused by using `.only()` and `.defer()`
 - it lets you configure your own threshold for what constitutes an N+1
 - it has slightly more helpful error messages that tell you where the N+1 occurred
-- `nplusone` patches the Django ORM even in production when it's not enabled. zeal does not!
-- `nplusone` appears to be abandoned at this point.
-- however, zeal only works with Django, whereas `nplusone` can also be used with SQLAlchemy.
+- nplusone patches the Django ORM even in production when it's not enabled. zeal does not!
+- nplusone appears to be abandoned at this point.
+- however, zeal only works with Django, whereas nplusone can also be used with SQLAlchemy.
+- zeal does not (yet) detect unused prefetches, but nplusone does.
 
 ## Contributing
 
