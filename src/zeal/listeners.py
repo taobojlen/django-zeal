@@ -1,4 +1,5 @@
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
@@ -86,7 +87,12 @@ class Listener(ABC):
         if should_error:
             raise self.error_class(message)
         else:
-            logger.warning(message)
+            warnings.warn_explicit(
+                message,
+                UserWarning,
+                filename=caller.filename,
+                lineno=caller.lineno,
+            )
 
 
 class NPlusOneListener(Listener):
