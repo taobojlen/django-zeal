@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/taobojlen/django-zeal/compare/v1.1.0...v1.2.0) (2024-07-22)
+
+
+### Features
+
+* use warnings instead of logging ([#15](https://github.com/taobojlen/django-zeal/issues/15)) ([df2c841](https://github.com/taobojlen/django-zeal/commit/df2c841b21fae664c14356d00a7a2f6ecbb7fd61))
+
 ## [1.1.0](https://github.com/taobojlen/django-zeal/compare/v1.0.0...v1.1.0) (2024-07-20)
 
 
