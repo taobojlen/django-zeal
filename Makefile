@@ -9,7 +9,7 @@ ci:
 	pip install -r requirements-dev.txt
 
 test:
-	pytest -s --tb=native --random-order
+	pytest -s --tb=native --random-order $(ARGS)
 
 format-check:
 	ruff format --check && ruff check

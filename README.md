@@ -201,6 +201,18 @@ ZEAL_ALLOWLIST = [
 ]
 ```
 
+## Debugging N+1s
+
+By default, zeal's alerts will tell you the line of your code that executed the same query
+multiple times. If you'd like to see the full call stack from each time the query was executed,
+you can set:
+
+```python
+ZEAL_SHOW_ALL_CALLERS = True
+```
+
+in your settings. This will give you the full call stack from each time the query was executed.
+
 ## Comparison to nplusone
 
 zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but has some differences:
