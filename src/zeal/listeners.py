@@ -1,3 +1,4 @@
+import inspect
 import logging
 import warnings
 from abc import ABC, abstractmethod
@@ -11,7 +12,7 @@ from typing import Optional, TypedDict
 from django.conf import settings
 from django.db import models
 
-from zeal.util import get_caller
+from zeal.util import get_caller, get_stack
 
 from .errors import NPlusOneError, ZealError
 
@@ -33,8 +34,8 @@ class AllowListEntry(TypedDict):
 
 @dataclass
 class NPlusOneContext:
-    counts: dict[CountsKey, int] = field(
-        default_factory=lambda: defaultdict(int)
+    calls: dict[CountsKey, list[list[inspect.FrameInfo]]] = field(
+        default_factory=lambda: defaultdict(list)
     )
     ignored: set[str] = field(default_factory=set)
     allowlist: list[AllowListEntry] = field(default_factory=list)
@@ -65,9 +66,20 @@ class Listener(ABC):
 
         return [*settings_allowlist, *_nplusone_context.get().allowlist]
 
-    def _alert(self, model: type[models.Model], field: str, message: str):
+    def _alert(
+        self,
+        model: type[models.Model],
+        field: str,
+        message: str,
+        calls: list[list[inspect.FrameInfo]],
+    ):
         should_error = (
             settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
+        )
+        should_include_all_callers = (
+            settings.ZEAL_SHOW_ALL_CALLERS
+            if hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
+            else False
         )
         is_allowlisted = False
         for entry in self._allowlist:
@@ -82,16 +94,23 @@ class Listener(ABC):
         if is_allowlisted:
             return
 
-        caller = get_caller()
-        message = f"{message} at {caller.filename}:{caller.lineno} in {caller.function}"
+        final_caller = get_caller()
+        if should_include_all_callers:
+            message = f"{message} with calls:\n"
+            for i, caller in enumerate(calls):
+                message += f"CALL {i+1}:\n"
+                for frame in caller:
+                    message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
+        else:
+            message = f"{message} at {final_caller.filename}:{final_caller.lineno} in {final_caller.function}"
         if should_error:
             raise self.error_class(message)
         else:
             warnings.warn_explicit(
                 message,
                 UserWarning,
-                filename=caller.filename,
-                lineno=caller.lineno,
+                filename=final_caller.filename,
+                lineno=final_caller.lineno,
             )
 
 
@@ -109,11 +128,11 @@ class NPlusOneListener(Listener):
         context = _nplusone_context.get()
         caller = get_caller()
         key = (model, field, f"{caller.filename}:{caller.lineno}")
-        context.counts[key] += 1
-        count = context.counts[key]
+        context.calls[key].append(get_stack())
+        count = len(context.calls[key])
         if count >= self._threshold and instance_key not in context.ignored:
             message = f"N+1 detected on {model.__name__}.{field}"
-            self._alert(model, field, message)
+            self._alert(model, field, message, context.calls[key])
         _nplusone_context.set(context)
 
     def ignore(self, instance_key: Optional[str]):
@@ -170,7 +189,7 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
 
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
-        counts=old_context.counts.copy(),
+        calls=old_context.calls.copy(),
         ignored=old_context.ignored.copy(),
         allowlist=[*old_context.allowlist, *allowlist],
     )
