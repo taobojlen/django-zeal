@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/taobojlen/django-zeal/compare/v1.2.0...v1.3.0) (2024-07-25)
+
+
+### Features
+
+* add ZEAL_SHOW_ALL_CALLERS to aid in debugging ([#17](https://github.com/taobojlen/django-zeal/issues/17)) ([7fdaf36](https://github.com/taobojlen/django-zeal/commit/7fdaf36db50fed6dee0b0544205e71035c977541))
+
 ## [1.2.0](https://github.com/taobojlen/django-zeal/compare/v1.1.0...v1.2.0) (2024-07-22)
 
 
