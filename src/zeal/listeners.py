@@ -34,6 +34,7 @@ class AllowListEntry(TypedDict):
 
 @dataclass
 class NPlusOneContext:
+    enabled: bool = False
     calls: dict[CountsKey, list[list[inspect.FrameInfo]]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -126,6 +127,8 @@ class NPlusOneListener(Listener):
         instance_key: Optional[str],
     ):
         context = _nplusone_context.get()
+        if not context.enabled:
+            return
         caller = get_caller()
         key = (model, field, f"{caller.filename}:{caller.lineno}")
         context.calls[key].append(get_stack())
@@ -163,7 +166,9 @@ def setup() -> Optional[Token]:
     # if we're already in an ignore-context, we don't want to override
     # it.
     context = _nplusone_context.get()
-    return _nplusone_context.set(NPlusOneContext(allowlist=context.allowlist))
+    return _nplusone_context.set(
+        NPlusOneContext(enabled=True, allowlist=context.allowlist)
+    )
 
 
 def teardown(token: Optional[Token] = None):
@@ -189,6 +194,7 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
 
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
+        enabled=old_context.enabled,
         calls=old_context.calls.copy(),
         ignored=old_context.ignored.copy(),
         allowlist=[*old_context.allowlist, *allowlist],

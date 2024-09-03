@@ -221,3 +221,21 @@ def test_context_specific_allowlist_merges():
             # this is still allowlisted
             for user in User.objects.all():
                 _ = list(user.posts.all())
+
+
+# other tests automatically run in a zeal context, so we need to disable
+# that here.
+@pytest.mark.nozeal
+def test_does_not_run_outside_of_context():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    # this should not raise since we are outside of a zeal context
+    for user in User.objects.all():
+        _ = list(user.posts.all())
+
+    with zeal_context(), pytest.raises(NPlusOneError):
+        # this should raise since we are inside a zeal context
+        for user in User.objects.all():
+            _ = list(user.posts.all())
