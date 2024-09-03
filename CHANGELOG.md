@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0](https://github.com/taobojlen/django-zeal/compare/v1.3.0...v1.4.0) (2024-09-03)
+
+**NOTE**: In versions 1.1.0 - 1.3.0, there was a bug that caused `zeal` to be active
+in all code, even outside of a `zeal_context` block. That is fixed in 1.4.0. When updating,
+make sure that you have installed zeal correctly as per the README.
+
+### Features
+
+* add async support to middleware ([#23](https://github.com/taobojlen/django-zeal/issues/23)) ([815bc16](https://github.com/taobojlen/django-zeal/commit/815bc1651e98a4519a42dfa088dcac4320350a1c))
+
+
+### Bug Fixes
+
+* only run zeal inside context ([#21](https://github.com/taobojlen/django-zeal/issues/21)) ([6c88fd2](https://github.com/taobojlen/django-zeal/commit/6c88fd247388cf58a3c2291917623b7e8094442b))
+
 ## [1.3.0](https://github.com/taobojlen/django-zeal/compare/v1.2.0...v1.3.0) (2024-07-25)
 
 
