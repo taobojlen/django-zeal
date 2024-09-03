@@ -35,3 +35,6 @@ DJANGO_SETTINGS_MODULE = "djangoproject.settings"
 pythonpath = ["src", "tests"]
 testpaths = ["tests"]
 addopts = "--nomigrations"
+markers = [
+    "nozeal: disable the auto-setup of zeal in a test",
+]
