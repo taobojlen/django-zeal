@@ -1,6 +1,6 @@
 [project]
 name = "django-zeal"
-version = "1.1.0"
+version = "1.4.0"
 description = "Detect N+1s in your Django app"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -35,3 +35,6 @@ DJANGO_SETTINGS_MODULE = "djangoproject.settings"
 pythonpath = ["src", "tests"]
 testpaths = ["tests"]
 addopts = "--nomigrations"
+markers = [
+    "nozeal: disable the auto-setup of zeal in a test",
+]

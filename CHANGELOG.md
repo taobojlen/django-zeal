@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.4.0](https://github.com/taobojlen/django-zeal/compare/v1.3.0...v1.4.0) (2024-09-03)
+
+**NOTE**: In versions 1.1.0 - 1.3.0, there was a bug that caused `zeal` to be active
+in all code, even outside of a `zeal_context` block. That is fixed in 1.4.0. When updating,
+make sure that you have installed zeal correctly as per the README.
+
+### Features
+
+* add async support to middleware ([#23](https://github.com/taobojlen/django-zeal/issues/23)) ([815bc16](https://github.com/taobojlen/django-zeal/commit/815bc1651e98a4519a42dfa088dcac4320350a1c))
+
+
+### Bug Fixes
+
+* only run zeal inside context ([#21](https://github.com/taobojlen/django-zeal/issues/21)) ([6c88fd2](https://github.com/taobojlen/django-zeal/commit/6c88fd247388cf58a3c2291917623b7e8094442b))
+
+## [1.3.0](https://github.com/taobojlen/django-zeal/compare/v1.2.0...v1.3.0) (2024-07-25)
+
+
+### Features
+
+* add ZEAL_SHOW_ALL_CALLERS to aid in debugging ([#17](https://github.com/taobojlen/django-zeal/issues/17)) ([7fdaf36](https://github.com/taobojlen/django-zeal/commit/7fdaf36db50fed6dee0b0544205e71035c977541))
+
+## [1.2.0](https://github.com/taobojlen/django-zeal/compare/v1.1.0...v1.2.0) (2024-07-22)
+
+
+### Features
+
+* use warnings instead of logging ([#15](https://github.com/taobojlen/django-zeal/issues/15)) ([df2c841](https://github.com/taobojlen/django-zeal/commit/df2c841b21fae664c14356d00a7a2f6ecbb7fd61))
+
 ## [1.1.0](https://github.com/taobojlen/django-zeal/compare/v1.0.0...v1.1.0) (2024-07-20)
 
 

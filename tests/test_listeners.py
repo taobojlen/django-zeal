@@ -1,5 +1,5 @@
-import logging
 import re
+import warnings
 
 import pytest
 from djangoproject.social.models import Post, User
@@ -17,16 +17,39 @@ def test_can_log_errors(settings, caplog):
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
-    with caplog.at_level(logging.WARNING):
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
         for user in User.objects.all():
             _ = list(user.posts.all())
-        assert (
-            re.search(
-                r"N\+1 detected on User\.posts at .*\/test_listeners\.py:22 in test_can_log_errors",
-                caplog.text,
-            )
-            is not None
-        ), f"{caplog.text} does not match regex"
+        assert len(w) == 1
+        assert issubclass(w[0].category, UserWarning)
+        assert re.search(
+            r"N\+1 detected on User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+            str(w[0].message),
+        )
+
+
+def test_can_log_all_traces(settings):
+    settings.ZEAL_SHOW_ALL_CALLERS = True
+    settings.ZEAL_RAISE = False
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        for user in User.objects.all():
+            _ = list(user.posts.all())
+        assert len(w) == 1
+        assert issubclass(w[0].category, UserWarning)
+        expected_lines = [
+            "N+1 detected on User.posts with calls:",
+            "CALL 1:",
+            "tests/test_listeners.py:41 in test_can_log_all_traces",
+            "CALL 2:",
+            "tests/test_listeners.py:41 in test_can_log_all_traces",
+        ]
+        for line in expected_lines:
+            assert line in str(w[0].message)
 
 
 def test_errors_include_caller():
@@ -35,7 +58,7 @@ def test_errors_include_caller():
     PostFactory.create(author=user_2)
     with pytest.raises(
         NPlusOneError,
-        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:41 in test_errors_include_caller",
+        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:64 in test_errors_include_caller",
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -133,25 +156,26 @@ def test_resets_state_in_nested_context():
 
     context = _nplusone_context.get()
     assert context.ignored == {"Test:1"}
-    assert list(context.counts.values()) == [1]
+    assert len(context.calls.values()) == 1
+    caller = list(context.calls.values())[0]
 
     with zeal_context():
         # new context, fresh state
         context = _nplusone_context.get()
         assert context.ignored == set()
-        assert list(context.counts.values()) == []
+        assert list(context.calls.values()) == []
 
         n_plus_one_listener.ignore("NestedTest:1")
         n_plus_one_listener.notify(Post, "nested_test_field", "Post:1")
 
         context = _nplusone_context.get()
         assert context.ignored == {"NestedTest:1"}
-        assert list(context.counts.values()) == [1]
+        assert len(list(context.calls.values())) == 1
 
     # back outside the nested context, we're back to the old state
     context = _nplusone_context.get()
     assert context.ignored == {"Test:1"}
-    assert list(context.counts.values()) == [1]
+    assert list(context.calls.values()) == [caller]
 
 
 def test_can_ignore_specific_models():
@@ -211,3 +235,21 @@ def test_context_specific_allowlist_merges():
             # this is still allowlisted
             for user in User.objects.all():
                 _ = list(user.posts.all())
+
+
+# other tests automatically run in a zeal context, so we need to disable
+# that here.
+@pytest.mark.nozeal
+def test_does_not_run_outside_of_context():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    # this should not raise since we are outside of a zeal context
+    for user in User.objects.all():
+        _ = list(user.posts.all())
+
+    with zeal_context(), pytest.raises(NPlusOneError):
+        # this should raise since we are inside a zeal context
+        for user in User.objects.all():
+            _ = list(user.posts.all())

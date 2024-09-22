@@ -90,40 +90,31 @@ def use_zeal():
         yield
 ```
 
-If you use unittest, add a custom test runner:
+If you use unittest, add custom test cases and inherit from these rather than directly from Django's test cases:
 
 ```python
-# In e.g. `myapp/testing/test_runners.py`
+# In e.g. `myapp/testing/test_cases.py`
 from zeal import setup as zeal_setup, teardown as zeal_teardown
-from django.test.runner import DiscoverRunner
-from unittest.runner import TextTestResult
+import unittest
+from django.test import SimpleTestCase, TestCase, TransactionTestCase
 
-class ZealTestResult(TextTestResult):
-    def startTest(self, test):
+class ZealTestMixin(unittest.TestCase):
+    def setUp(self, test):
         zeal_setup()
-        return super().startTest(test)
+        super().setUp()
 
-    def addError(self, test, err) -> None:
+    def teardown(self) -> None:
         zeal_teardown()
-        return super().addError(test, err)
+        return super().teardown(test, err)
 
-    def addFailure(self, test, err) -> None:
-        zeal_teardown()
-        return super().addFailure(test, err)
+class CustomSimpleTestCase(ZealTestMixin, SimpleTestCase):
+    pass
 
-    def addSuccess(self, test):
-        zeal_teardown()
-        return super().addSuccess(test)
+class CustomTestCase(ZealTestMixin, TestCase):
+    pass
 
-class ZealTestRunner(DiscoverRunner):
-    def get_resultclass(self):
-        return ZealTestResult
-
-
-# And in your settings:
-TEST_RUNNER = (
-    "myapp.testing.test_runners.ZealTestRunner"
-)
+class CustomTransactionTestCase(ZealTestMixin, TransactionTestCase):
+    pass
 ```
 
 ### Generic setup
@@ -156,7 +147,7 @@ def baz():
 ## Configuration
 
 By default, any issues detected by zeal will raise a `ZealError`. If you'd
-rather log any detected N+1s, you can set:
+rather log any detected N+1s as warnings, you can set:
 
 ```python
 ZEAL_RAISE = False
@@ -201,15 +192,28 @@ ZEAL_ALLOWLIST = [
 ]
 ```
 
+## Debugging N+1s
+
+By default, zeal's alerts will tell you the line of your code that executed the same query
+multiple times. If you'd like to see the full call stack from each time the query was executed,
+you can set:
+
+```python
+ZEAL_SHOW_ALL_CALLERS = True
+```
+
+in your settings. This will give you the full call stack from each time the query was executed.
+
 ## Comparison to nplusone
 
-zeal borrows heavily from [`nplusone`](https://github.com/jmcarp/nplusone), but has some differences:
+zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but has some differences:
 - zeal also detects N+1 caused by using `.only()` and `.defer()`
 - it lets you configure your own threshold for what constitutes an N+1
 - it has slightly more helpful error messages that tell you where the N+1 occurred
-- `nplusone` patches the Django ORM even in production when it's not enabled. zeal does not!
-- `nplusone` appears to be abandoned at this point.
-- however, zeal only works with Django, whereas `nplusone` can also be used with SQLAlchemy.
+- nplusone patches the Django ORM even in production when it's not enabled. zeal does not!
+- nplusone appears to be abandoned at this point.
+- however, zeal only works with Django, whereas nplusone can also be used with SQLAlchemy.
+- zeal does not (yet) detect unused prefetches, but nplusone does.
 
 ## Contributing
 
