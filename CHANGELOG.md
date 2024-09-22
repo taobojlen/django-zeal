@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/taobojlen/django-zeal/compare/v1.4.0...v1.4.1) (2024-09-22)
+
+
+### Performance Improvements
+
+* don't load context in callstack ([#26](https://github.com/taobojlen/django-zeal/issues/26)) ([5ade002](https://github.com/taobojlen/django-zeal/commit/5ade0023be95173506167e5cd50388a8dbb5b5e9))
+
 ## [1.4.0](https://github.com/taobojlen/django-zeal/compare/v1.3.0...v1.4.0) (2024-09-03)
 
 **NOTE**: In versions 1.1.0 - 1.3.0, there was a bug that caused `zeal` to be active
