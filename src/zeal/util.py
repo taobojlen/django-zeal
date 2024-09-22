@@ -16,7 +16,7 @@ def get_stack() -> list[inspect.FrameInfo]:
     """
     return [
         frame
-        for frame in inspect.stack()[1:]
+        for frame in inspect.stack(context=0)[1:]
         if not any(pattern in frame.filename for pattern in PATTERNS)
     ]
 
