@@ -8,3 +8,4 @@ pyright
 build
 twine
 pytest-random-order
+sentry-sdk

@@ -192,6 +192,23 @@ ZEAL_ALLOWLIST = [
 ]
 ```
 
+## Sentry supporting
+
+If you want send message to sentry, you can set
+
+```python
+ZEAL_RAISE_IN_SENTRY = True
+```
+
+Note: if you set this option, errors won't raise locally, you should do it for production development. It has been done to avoid duplicate errors message for sentry.
+
+Also you can set level log message for sentry
+
+```python
+ZEAL_TYPE_MESSAGE_FOR_SENTRY = "info"
+```
+List of available [levels](https://github.com/getsentry/sentry-python/blob/24e5359580374ba474cbb2fb2837ed4c8a29cae6/sentry_sdk/_types.py#L31), take a attention, if you'll specify level not including on the list, level will be as error,
+
 ## Debugging N+1s
 
 By default, zeal's alerts will tell you the line of your code that executed the same query

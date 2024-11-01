@@ -82,6 +82,11 @@ class Listener(ABC):
             if hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
             else False
         )
+        raise_in_sentry = (
+            settings.ZEAL_RAISE_IN_SENTRY
+            if hasattr(settings, "ZEAL_RAISE_IN_SENTRY")
+            else False
+        )
         is_allowlisted = False
         for entry in self._allowlist:
             model_match = fnmatch(
@@ -104,7 +109,10 @@ class Listener(ABC):
                     message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
         else:
             message = f"{message} at {final_caller.filename}:{final_caller.lineno} in {final_caller.function}"
-        if should_error:
+
+        if raise_in_sentry:
+            self.send_message_to_sentry(message)
+        elif should_error:
             raise self.error_class(message)
         else:
             warnings.warn_explicit(
@@ -113,6 +121,18 @@ class Listener(ABC):
                 filename=final_caller.filename,
                 lineno=final_caller.lineno,
             )
+
+    def send_message_to_sentry(self, message: str) -> None:
+        """Handle for sending message to sentry app."""
+        from sentry_sdk import capture_message, set_level
+
+        sentry_type_error_message = getattr(
+            settings,
+            "ZEAL_TYPE_MESSAGE_FOR_SENTRY",
+            "info",
+        )
+        set_level(sentry_type_error_message)
+        capture_message(message)
 
 
 class NPlusOneListener(Listener):
