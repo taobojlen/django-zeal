@@ -180,6 +180,17 @@ with zeal_ignore([{"model": "polls.Question", "field": "options"}]):
     # code in this block will ignore N+1s on Question.options
 ```
 
+If you want to listen to N+1 exceptions globally and do something with them, you can listen to the Django signal that zeal emits
+
+```python
+from zeal.signals import nplusone_detected
+from django.dispatch import receiver
+
+@receiver(nplusone_detected)
+def handle_nplusone(sender, exception):
+    # do something
+```
+
 Finally, if you want to ignore N+1 alerts from a specific model/field globally, you can
 add it to your settings:
 
@@ -194,6 +205,7 @@ ZEAL_ALLOWLIST = [
     {"model": "polls.Question"},
 ]
 ```
+
 
 ## Debugging N+1s
 
