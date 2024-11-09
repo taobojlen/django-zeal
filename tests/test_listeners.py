@@ -4,6 +4,7 @@ import warnings
 import pytest
 from djangoproject.social.models import Post, User
 from zeal import NPlusOneError, zeal_context, zeal_ignore
+from zeal.errors import ZealConfigError
 from zeal.listeners import _nplusone_context, n_plus_one_listener
 
 from .factories import PostFactory, UserFactory
@@ -24,7 +25,7 @@ def test_can_log_errors(settings, caplog):
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
         assert re.search(
-            r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+            r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:24 in test_can_log_errors",
             str(w[0].message),
         )
 
@@ -44,9 +45,9 @@ def test_can_log_all_traces(settings):
         expected_lines = [
             "N+1 detected on social.User.posts with calls:",
             "CALL 1:",
-            "tests/test_listeners.py:41 in test_can_log_all_traces",
+            "tests/test_listeners.py:42 in test_can_log_all_traces",
             "CALL 2:",
-            "tests/test_listeners.py:41 in test_can_log_all_traces",
+            "tests/test_listeners.py:42 in test_can_log_all_traces",
         ]
         for line in expected_lines:
             assert line in str(w[0].message)
@@ -58,7 +59,7 @@ def test_errors_include_caller():
     PostFactory.create(author=user_2)
     with pytest.raises(
         NPlusOneError,
-        match=r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:64 in test_errors_include_caller",
+        match=r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:65 in test_errors_include_caller",
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -261,7 +262,7 @@ def test_does_not_run_outside_of_context():
 def test_validates_global_allowlist_model_name(settings):
     settings.ZEAL_ALLOWLIST = [{"model": "foo", "field": "*"}]
     with pytest.raises(
-        ValueError,
+        ZealConfigError,
         match=re.escape("Model 'foo' not found in installed Django models"),
     ):
         with zeal_context():
@@ -272,7 +273,8 @@ def test_validates_global_allowlist_model_name(settings):
 def test_validates_global_allowlist_field_name(settings):
     settings.ZEAL_ALLOWLIST = [{"model": "social.User", "field": "foo"}]
     with pytest.raises(
-        ValueError, match=re.escape("Field 'foo' not found on 'social.User'")
+        ZealConfigError,
+        match=re.escape("Field 'foo' not found on 'social.User'"),
     ):
         with zeal_context():
             pass
@@ -287,7 +289,7 @@ def test_allows_fnmatch_in_global_allowlist(settings):
 
 def test_validates_local_allowlist_model_name():
     with pytest.raises(
-        ValueError,
+        ZealConfigError,
         match=re.escape("Model 'foo' not found in installed Django models"),
     ):
         with zeal_ignore([{"model": "foo", "field": "*"}]):
@@ -296,7 +298,8 @@ def test_validates_local_allowlist_model_name():
 
 def test_validates_local_allowlist_field_name():
     with pytest.raises(
-        ValueError, match=re.escape("Field 'foo' not found on 'social.User'")
+        ZealConfigError,
+        match=re.escape("Field 'foo' not found on 'social.User'"),
     ):
         with zeal_ignore([{"model": "social.User", "field": "foo"}]):
             pass
