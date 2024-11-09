@@ -30,8 +30,8 @@ pip install django-zeal
 ```
 
 Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
-don't want to run it in production: I haven't profiled it but it will have a performance
-impact.
+don't want to run it in production: there is significant overhead to detecting
+N+1s, and benchmarks show that zeal can make your code between 2.5x - 7x slower.
 
 ```python
 if DEBUG:
