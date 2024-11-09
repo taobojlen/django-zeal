@@ -196,7 +196,7 @@ def test_can_ignore_specific_models():
                 _ = post.author
 
     # if we ignore another field, we still raise
-    with zeal_ignore([{"model": "social.User", "field": "foobar"}]):
+    with zeal_ignore([{"model": "social.User", "field": "following"}]):
         with pytest.raises(
             NPlusOneError, match=re.escape("N+1 detected on User.posts")
         ):
@@ -253,3 +253,53 @@ def test_does_not_run_outside_of_context():
         # this should raise since we are inside a zeal context
         for user in User.objects.all():
             _ = list(user.posts.all())
+
+
+@pytest.mark.nozeal
+def test_validates_global_allowlist_model_name(settings):
+    settings.ZEAL_ALLOWLIST = [{"model": "foo", "field": "*"}]
+    with pytest.raises(
+        ValueError,
+        match=re.escape("Model 'foo' not found in installed Django models"),
+    ):
+        with zeal_context():
+            pass
+
+
+@pytest.mark.nozeal
+def test_validates_global_allowlist_field_name(settings):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.User", "field": "foo"}]
+    with pytest.raises(
+        ValueError, match=re.escape("Field 'foo' not found on 'social.User'")
+    ):
+        with zeal_context():
+            pass
+
+
+@pytest.mark.nozeal
+def test_allows_fnmatch_in_global_allowlist(settings):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.U[sb]er", "field": "p?st"}]
+    with zeal_context():
+        pass
+
+
+def test_validates_local_allowlist_model_name():
+    with pytest.raises(
+        ValueError,
+        match=re.escape("Model 'foo' not found in installed Django models"),
+    ):
+        with zeal_ignore([{"model": "foo", "field": "*"}]):
+            pass
+
+
+def test_validates_local_allowlist_field_name():
+    with pytest.raises(
+        ValueError, match=re.escape("Field 'foo' not found on 'social.User'")
+    ):
+        with zeal_ignore([{"model": "social.User", "field": "foo"}]):
+            pass
+
+
+def test_allows_fnmatch_in_local_allowlist():
+    with zeal_ignore([{"model": "social.U[sb]er", "field": "p?st"}]):
+        pass

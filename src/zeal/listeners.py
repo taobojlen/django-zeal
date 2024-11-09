@@ -14,6 +14,7 @@ from django.db import models
 
 from zeal.util import get_caller, get_stack
 
+from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealError
 
 
@@ -30,6 +31,29 @@ CountsKey = tuple[type[models.Model], str, str]
 class AllowListEntry(TypedDict):
     model: str
     field: Optional[str]
+
+
+def _validate_allowlist(allowlist: list[AllowListEntry]):
+    for entry in allowlist:
+        fnmatch_chars = "*?[]"
+        # if this is an fnmatch, don't do anything
+        if any(char in entry["model"] for char in fnmatch_chars):
+            continue
+        if entry["model"] not in ALL_APPS:
+            raise ValueError(
+                f"Model '{entry['model']}' not found in installed Django models"
+            )
+
+        if not entry["field"]:
+            continue
+
+        if any(char in entry["field"] for char in fnmatch_chars):
+            continue
+
+        if entry["field"] not in ALL_APPS[entry["model"]]:
+            raise ValueError(
+                f"Field '{entry['field']}' not found on '{entry['model']}'"
+            )
 
 
 @dataclass
@@ -166,6 +190,8 @@ def setup() -> Optional[Token]:
     # if we're already in an ignore-context, we don't want to override
     # it.
     context = _nplusone_context.get()
+    if hasattr(settings, "ZEAL_ALLOWLIST"):
+        _validate_allowlist(settings.ZEAL_ALLOWLIST)
     return _nplusone_context.set(
         NPlusOneContext(enabled=True, allowlist=context.allowlist)
     )
@@ -191,6 +217,8 @@ def zeal_context():
 def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
     if allowlist is None:
         allowlist = [{"model": "*", "field": "*"}]
+    else:
+        _validate_allowlist(allowlist)
 
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
