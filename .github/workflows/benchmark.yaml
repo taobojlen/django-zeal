@@ -1,0 +1,24 @@
+name: Benchmark
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        django-version: ["4.2", "5.0"]
+    name: Benchmark (Django ${{ matrix.django-version }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: "pip"
+      - run: make ci
+      - run: make benchmark >> $GITHUB_STEP_SUMMARY 2>&1
