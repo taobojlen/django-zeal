@@ -1,4 +1,4 @@
-from django.apps import AppConfig, apps
+from django.apps import AppConfig
 
 from .patch import patch
 
@@ -7,10 +7,7 @@ class ZealConfig(AppConfig):
     name = "zeal"
 
     def ready(self):
-        from .constants import ALL_APPS
+        from .constants import initialize_app_registry
 
-        for model in apps.get_models():
-            ALL_APPS[f"{model._meta.app_label}.{model.__name__}"] = [
-                field.name for field in model._meta.get_fields()
-            ]
+        initialize_app_registry()
         patch()

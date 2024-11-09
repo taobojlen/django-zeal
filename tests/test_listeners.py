@@ -305,3 +305,13 @@ def test_validates_local_allowlist_field_name():
 def test_allows_fnmatch_in_local_allowlist():
     with zeal_ignore([{"model": "social.U[sb]er", "field": "p?st"}]):
         pass
+
+
+def test_validates_related_name_field_names():
+    # User.following is a M2M field with related_name followers
+    with zeal_ignore([{"model": "social.User", "field": "followers"}]):
+        pass
+
+    # User.blocked is a M2M field with an auto-generated related name (user_set)
+    with zeal_ignore([{"model": "social.User", "field": "user_set"}]):
+        pass
