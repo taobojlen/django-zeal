@@ -10,7 +10,7 @@ Catch N+1 queries in your Django project.
 ## Features
 
 - Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`
-- Friendly error messages like `N+1 detected on User.followers at myapp/views.py:25 in get_user`
+- Friendly error messages like `N+1 detected on social.User.followers at myapp/views.py:25 in get_user`
 - Configurable thresholds
 - Allow-list
 - Well-tested
@@ -44,7 +44,6 @@ read on!
 > You probably don't want to run zeal in production:
 > there is significant overhead to detecting N+1s, and my benchmarks show that it
 > can make your code between 2.5x - 7x slower.
-
 
 ### Celery
 
@@ -211,6 +210,7 @@ in your settings. This will give you the full call stack from each time the quer
 ## Comparison to nplusone
 
 zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but has some differences:
+
 - zeal also detects N+1 caused by using `.only()` and `.defer()`
 - it lets you configure your own threshold for what constitutes an N+1
 - it has slightly more helpful error messages that tell you where the N+1 occurred

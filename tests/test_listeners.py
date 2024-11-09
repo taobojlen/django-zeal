@@ -24,7 +24,7 @@ def test_can_log_errors(settings, caplog):
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
         assert re.search(
-            r"N\+1 detected on User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
+            r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:23 in test_can_log_errors",
             str(w[0].message),
         )
 
@@ -42,7 +42,7 @@ def test_can_log_all_traces(settings):
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
         expected_lines = [
-            "N+1 detected on User.posts with calls:",
+            "N+1 detected on social.User.posts with calls:",
             "CALL 1:",
             "tests/test_listeners.py:41 in test_can_log_all_traces",
             "CALL 2:",
@@ -58,7 +58,7 @@ def test_errors_include_caller():
     PostFactory.create(author=user_2)
     with pytest.raises(
         NPlusOneError,
-        match=r"N\+1 detected on User\.posts at .*\/test_listeners\.py:64 in test_errors_include_caller",
+        match=r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:64 in test_errors_include_caller",
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -76,7 +76,7 @@ def test_can_exclude_with_allowlist(settings):
         _ = list(user.posts.all())
 
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
     ):
         for post in Post.objects.all():
             _ = post.author
@@ -94,7 +94,7 @@ def test_can_use_fnmatch_pattern_in_allowlist_model(settings):
         _ = list(user.posts.all())
 
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
     ):
         for post in Post.objects.all():
             _ = post.author
@@ -112,7 +112,7 @@ def test_can_use_fnmatch_pattern_in_allowlist_field(settings):
         _ = list(user.posts.all())
 
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
     ):
         for post in Post.objects.all():
             _ = post.author
@@ -189,7 +189,8 @@ def test_can_ignore_specific_models():
             _ = list(user.posts.all())
 
         with pytest.raises(
-            NPlusOneError, match=re.escape("N+1 detected on Post.author")
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.Post.author"),
         ):
             # this is *not* allowlisted
             for post in Post.objects.all():
@@ -198,14 +199,14 @@ def test_can_ignore_specific_models():
     # if we ignore another field, we still raise
     with zeal_ignore([{"model": "social.User", "field": "foobar"}]):
         with pytest.raises(
-            NPlusOneError, match=re.escape("N+1 detected on User.posts")
+            NPlusOneError, match=re.escape("N+1 detected on social.User.posts")
         ):
             for user in User.objects.all():
                 _ = list(user.posts.all())
 
     # outside of the context, we're back to normal
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.posts")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.posts")
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -222,7 +223,8 @@ def test_context_specific_allowlist_merges():
             _ = list(user.posts.all())
 
         with pytest.raises(
-            NPlusOneError, match=re.escape("N+1 detected on Post.author")
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.Post.author"),
         ):
             # this is *not* allowlisted
             for post in Post.objects.all():

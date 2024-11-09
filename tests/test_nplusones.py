@@ -17,7 +17,7 @@ def test_detects_nplusone_in_forward_many_to_one():
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
     ):
         for post in Post.objects.all():
             _ = post.author.username
@@ -32,7 +32,7 @@ def test_detects_nplusone_in_forward_many_to_one_iterator():
         PostFactory.create(author=user)
 
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Post.author")
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
     ):
         for post in Post.objects.all().iterator(chunk_size=2):
             _ = post.author.username
@@ -89,7 +89,7 @@ def test_detects_nplusone_in_reverse_many_to_one():
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.posts")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.posts")
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -103,7 +103,7 @@ def test_detects_nplusone_in_reverse_many_to_one_iterator():
         user = UserFactory.create()
         PostFactory.create(author=user)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.posts")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.posts")
     ):
         for user in User.objects.all().iterator(chunk_size=2):
             _ = list(user.posts.all())
@@ -128,7 +128,7 @@ def test_detects_nplusone_in_forward_one_to_one():
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Profile.user")
+        NPlusOneError, match=re.escape("N+1 detected on social.Profile.user")
     ):
         for profile in Profile.objects.all():
             _ = profile.user.username
@@ -142,7 +142,7 @@ def test_detects_nplusone_in_forward_one_to_one_iterator():
         user = UserFactory.create()
         ProfileFactory.create(user=user)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on Profile.user")
+        NPlusOneError, match=re.escape("N+1 detected on social.Profile.user")
     ):
         for profile in Profile.objects.all().iterator(chunk_size=2):
             _ = profile.user.username
@@ -198,7 +198,7 @@ def test_detects_nplusone_in_reverse_one_to_one():
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.profile")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.profile")
     ):
         for user in User.objects.all():
             _ = user.profile.display_name
@@ -212,7 +212,7 @@ def test_detects_nplusone_in_reverse_one_to_one_iterator():
         user = UserFactory.create()
         ProfileFactory.create(user=user)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.profile")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.profile")
     ):
         for user in User.objects.all().iterator(chunk_size=2):
             _ = user.profile.display_name
@@ -267,7 +267,7 @@ def test_detects_nplusone_in_forward_many_to_many():
     user_1.following.add(user_2)
     user_2.following.add(user_1)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.following")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.following")
     ):
         for user in User.objects.all():
             _ = list(user.following.all())
@@ -282,7 +282,7 @@ def test_detects_nplusone_in_forward_many_to_many_iterator():
     influencer.followers.set(users)  # type: ignore
 
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.following")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.following")
     ):
         for user in User.objects.iterator(chunk_size=2):
             _ = list(user.following.all())
@@ -319,7 +319,7 @@ def test_detects_nplusone_in_reverse_many_to_many():
     user_1.following.add(user_2)
     user_2.following.add(user_1)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.followers")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.followers")
     ):
         for user in User.objects.all():
             _ = list(user.followers.all())
@@ -333,7 +333,7 @@ def test_detects_nplusone_in_reverse_many_to_many_iterator():
     users = UserFactory.create_batch(4)
     follower.following.set(users)  # type: ignore
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.followers")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.followers")
     ):
         for user in User.objects.all().iterator(chunk_size=2):
             _ = list(user.followers.all())
@@ -370,7 +370,7 @@ def test_detects_nplusone_in_reverse_many_to_many_with_no_related_name():
     user_1.blocked.add(user_2)
     user_2.blocked.add(user_1)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.user_set")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.user_set")
     ):
         for user in User.objects.all():
             _ = list(user.user_set.all())
@@ -384,7 +384,7 @@ def test_detects_nplusone_due_to_deferred_fields():
     PostFactory.create(author=user_1)
     PostFactory.create(author=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.username")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.username")
     ):
         for post in (
             Post.objects.all().select_related("author").only("author__id")
@@ -402,7 +402,7 @@ def test_detects_nplusone_due_to_deferred_fields_in_iterator():
         user = UserFactory.create()
         PostFactory.create(author=user)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on User.username")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.username")
     ):
         for post in (
             Post.objects.all()
@@ -468,7 +468,7 @@ def test_works_in_web_requests(client):
     ProfileFactory.create(user=user_1)
     ProfileFactory.create(user=user_2)
     with pytest.raises(
-        NPlusOneError, match=re.escape(r"N+1 detected on User.profile")
+        NPlusOneError, match=re.escape(r"N+1 detected on social.User.profile")
     ):
         response = client.get("/users/")
 

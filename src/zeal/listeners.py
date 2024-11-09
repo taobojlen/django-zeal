@@ -134,7 +134,7 @@ class NPlusOneListener(Listener):
         context.calls[key].append(get_stack())
         count = len(context.calls[key])
         if count >= self._threshold and instance_key not in context.ignored:
-            message = f"N+1 detected on {model.__name__}.{field}"
+            message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
             self._alert(model, field, message, context.calls[key])
         _nplusone_context.set(context)
 
