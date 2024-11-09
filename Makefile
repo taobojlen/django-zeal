@@ -9,7 +9,10 @@ ci:
 	pip install -r requirements-dev.txt
 
 test:
-	pytest -s --tb=native --random-order $(ARGS)
+	pytest -s --tb=native --random-order -m "not benchmark" $(ARGS)
+
+benchmark:
+	@pytest -s --quiet -m benchmark $(ARGS) > /dev/null
 
 format-check:
 	ruff format --check && ruff check
