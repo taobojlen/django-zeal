@@ -29,9 +29,7 @@ First:
 pip install django-zeal
 ```
 
-Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`. You probably
-don't want to run it in production: there is significant overhead to detecting
-N+1s, and benchmarks show that zeal can make your code between 2.5x - 7x slower.
+Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`.
 
 ```python
 if DEBUG:
@@ -41,6 +39,12 @@ if DEBUG:
 
 This will detect N+1s that happen in web requests. To catch N+1s in more places,
 read on!
+
+> [!WARNING]  
+> You probably don't want to run zeal in production:
+> there is significant overhead to detecting N+1s, and my benchmarks show that it
+> can make your code between 2.5x - 7x slower.
+
 
 ### Celery
 
