@@ -15,7 +15,7 @@ from django.db import models
 from zeal.util import get_caller, get_stack
 
 from .constants import ALL_APPS
-from .errors import NPlusOneError, ZealError
+from .errors import NPlusOneError, ZealConfigError, ZealError
 
 
 class QuerySource(TypedDict):
@@ -40,7 +40,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
         if any(char in entry["model"] for char in fnmatch_chars):
             continue
         if entry["model"] not in ALL_APPS:
-            raise ValueError(
+            raise ZealConfigError(
                 f"Model '{entry['model']}' not found in installed Django models"
             )
 
@@ -51,7 +51,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
             continue
 
         if entry["field"] not in ALL_APPS[entry["model"]]:
-            raise ValueError(
+            raise ZealConfigError(
                 f"Field '{entry['field']}' not found on '{entry['model']}'"
             )
 

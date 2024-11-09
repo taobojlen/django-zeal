@@ -4,3 +4,7 @@ class ZealError(Exception):
 
 class NPlusOneError(ZealError):
     pass
+
+
+class ZealConfigError(ZealError):
+    pass
