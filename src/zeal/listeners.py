@@ -16,6 +16,7 @@ from zeal.util import get_caller, get_stack
 
 from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealConfigError, ZealError
+from .signals import nplusone_detected
 
 
 class QuerySource(TypedDict):
@@ -181,6 +182,20 @@ class NPlusOneListener(Listener):
             return settings.ZEAL_NPLUSONE_THRESHOLD
         else:
             return 2
+
+    def _alert(
+        self,
+        model: type[models.Model],
+        field: str,
+        message: str,
+        calls: list[list[inspect.FrameInfo]],
+    ):
+        super()._alert(model, field, message, calls)
+        nplusone_detected.send(
+            sender=self,
+            exception=self.error_class(message),
+        )
+
 
 
 n_plus_one_listener = NPlusOneListener()
