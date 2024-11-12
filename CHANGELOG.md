@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0](https://github.com/taobojlen/django-zeal/compare/v1.4.1...v2.0.0) (2024-11-12)
+
+
+### Features
+
+* add app name to error messages ([#34](https://github.com/taobojlen/django-zeal/issues/34)) ([ad6fe5f](https://github.com/taobojlen/django-zeal/commit/ad6fe5f6599de26ee9adf30cd372cd3fcb7cded0))
+* Add Django signal for zeal errors ([#31](https://github.com/taobojlen/django-zeal/issues/31)) ([1190ca7](https://github.com/taobojlen/django-zeal/commit/1190ca73b5e714c3ded3b979e0fb09935928abca))
+* validate the allowlist ([#33](https://github.com/taobojlen/django-zeal/issues/33)) ([2aa1b42](https://github.com/taobojlen/django-zeal/commit/2aa1b42c3a441d6b66f52dd2ba70abc6ffe5efee))
+
+
+### Bug Fixes
+
+* handle related field names in allowlist validation ([#36](https://github.com/taobojlen/django-zeal/issues/36)) ([654eed6](https://github.com/taobojlen/django-zeal/commit/654eed692b9b6e0a17d5c5edc4ec74a2ae0783c9))
+* use custom error class for validation errors ([#37](https://github.com/taobojlen/django-zeal/issues/37)) ([035ae35](https://github.com/taobojlen/django-zeal/commit/035ae3574e3bf29e1c24d896d5c3cd4100d1002b))
+
+
+### Miscellaneous Chores
+
+* make breaking change ([5eed8ec](https://github.com/taobojlen/django-zeal/commit/5eed8ec26e89f657e659d37acbf51c4ef8c4bed4))
+
 ## [1.4.1](https://github.com/taobojlen/django-zeal/compare/v1.4.0...v1.4.1) (2024-09-22)
 
 
