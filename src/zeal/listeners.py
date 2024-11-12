@@ -197,7 +197,6 @@ class NPlusOneListener(Listener):
         )
 
 
-
 n_plus_one_listener = NPlusOneListener()
 
 
