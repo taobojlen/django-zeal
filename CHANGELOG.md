@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/taobojlen/django-zeal/compare/v2.0.0...v2.0.1) (2024-11-13)
+
+
+### Bug Fixes
+
+* use correct field name in forward many-to-many fields ([#39](https://github.com/taobojlen/django-zeal/issues/39)) ([3ada66f](https://github.com/taobojlen/django-zeal/commit/3ada66fa8f9b9c79acd9f2c45b35cb4967770e04))
+
 ## [2.0.0](https://github.com/taobojlen/django-zeal/compare/v1.4.1...v2.0.0) (2024-11-12)
 
 
