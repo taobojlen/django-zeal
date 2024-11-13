@@ -365,6 +365,20 @@ def test_no_false_positive_when_loading_single_object_reverse_many_to_many():
         assert len(ctx.captured_queries) == 2
 
 
+def test_detects_nplusone_in_forward_many_to_many_with_no_related_name():
+    [user_1, user_2] = UserFactory.create_batch(2)
+    user_1.blocked.add(user_2)
+    user_2.blocked.add(user_1)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.blocked")
+    ):
+        for user in User.objects.all():
+            _ = list(user.blocked.all())
+
+    for user in User.objects.prefetch_related("blocked").all():
+        _ = list(user.blocked.all())
+
+
 def test_detects_nplusone_in_reverse_many_to_many_with_no_related_name():
     [user_1, user_2] = UserFactory.create_batch(2)
     user_1.blocked.add(user_2)

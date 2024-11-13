@@ -229,7 +229,10 @@ def patch_many_to_many_descriptor():
         manager = context["args"][0]
         model = manager.instance.__class__
         related_model = manager.target_field.related_model
-        field_name = manager.prefetch_cache_name if rel.related_name else None
+        is_reverse = context["manager_call_args"]["reverse"]
+        field_name = (
+            rel.related_name if is_reverse else manager.prefetch_cache_name
+        )
 
         model, field_name = parse_related_parts(
             model, field_name, related_model
