@@ -9,3 +9,4 @@ build
 twine
 pytest-random-order
 pytest-mock
+pytest-codspeed

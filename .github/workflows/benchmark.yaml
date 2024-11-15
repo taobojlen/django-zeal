@@ -6,14 +6,14 @@ on:
   pull_request:
     branches:
       - main
+  # `workflow_dispatch` allows CodSpeed to trigger backtest
+  # performance analysis in order to generate initial data.
+  workflow_dispatch:
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        django-version: ["4.2", "5.0"]
-    name: Benchmark (Django ${{ matrix.django-version }})
+    name: Benchmark
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,4 +21,8 @@ jobs:
           python-version: 3.12
           cache: "pip"
       - run: make ci
-      - run: make benchmark >> $GITHUB_STEP_SUMMARY 2>&1
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          token: ${{ secrets.CODSPEED_TOKEN }}
+          run: pytest tests/ --codspeed

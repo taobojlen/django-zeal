@@ -12,7 +12,7 @@ test:
 	pytest -s --tb=native --random-order -m "not benchmark" $(ARGS)
 
 benchmark:
-	@pytest -s --quiet -m benchmark $(ARGS) > /dev/null
+	pytest -s $(ARGS) --codspeed
 
 format-check:
 	ruff format --check && ruff check
