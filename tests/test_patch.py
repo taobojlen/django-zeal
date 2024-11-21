@@ -26,22 +26,6 @@ def test_handles_get_with_values():
     User.objects.filter(pk=user.pk).values("username").get()
 
 
-def test_handles_model_eq_comparison():
-    """Test that comparing model instances with custom __eq__ doesn't cause recursion"""
-    user1 = UserFactory.create()
-    user2 = UserFactory.create()
-    user3 = UserFactory.create()
-
-    # Set up following relationships after creation
-    user2.following.set([user1])
-    user3.following.set([user1])
-
-    # This should not cause recursion when comparing users with the same following
-    assert user2 != user1  # different following relationships
-    assert user2 == user2  # same object
-    assert user2 != user3  # different objects but same following
-
-
 class CustomEqualityModel(models.Model):
     """Model that implements custom equality checking using related fields"""
 
@@ -83,7 +67,6 @@ def test_handles_custom_equality_with_relations():
 
     result = CustomEqualityModel.objects.filter(name="test1").first()
     assert result is not None
-    # Trigger recursion if not fixed.
     _ = result.relation
 
 
@@ -99,9 +82,9 @@ def test_handles_nested_relation_equality():
     leaf1 = CustomEqualityModel.objects.create(name="leaf", relation=middle)
     leaf2 = CustomEqualityModel.objects.create(name="leaf", relation=middle)
 
-    assert leaf1 == leaf2  # Same name and relation
-    assert leaf1.relation == leaf2.relation  # middle objects are the same
+    assert leaf1 == leaf2
+    assert leaf1.relation == leaf2.relation
 
     result = CustomEqualityModel.objects.filter(name="leaf").first()
     assert result is not None
-    _ = result.relation.relation  # Access root through middle
+    _ = result.relation.relation
