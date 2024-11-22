@@ -5,7 +5,7 @@
 
 ### Bug Fixes
 
-* **#28:** prevent infinite recursion when custom __eq__ is used. ([#43](https://github.com/taobojlen/django-zeal/issues/43)) ([d157059](https://github.com/taobojlen/django-zeal/commit/d1570593bde02cd5f020fcbfb21350df03e43026))
+* **#28:** prevent infinite recursion when custom __eq__ is used. ([#43](https://github.com/taobojlen/django-zeal/issues/43)) ([d157059](https://github.com/taobojlen/django-zeal/commit/d1570593bde02cd5f020fcbfb21350df03e43026)) (thanks @bradleyess!)
 
 ## [2.0.1](https://github.com/taobojlen/django-zeal/compare/v2.0.0...v2.0.1) (2024-11-13)
 
@@ -20,7 +20,7 @@
 ### Features
 
 * add app name to error messages ([#34](https://github.com/taobojlen/django-zeal/issues/34)) ([ad6fe5f](https://github.com/taobojlen/django-zeal/commit/ad6fe5f6599de26ee9adf30cd372cd3fcb7cded0))
-* Add Django signal for zeal errors ([#31](https://github.com/taobojlen/django-zeal/issues/31)) ([1190ca7](https://github.com/taobojlen/django-zeal/commit/1190ca73b5e714c3ded3b979e0fb09935928abca))
+* Add Django signal for zeal errors ([#31](https://github.com/taobojlen/django-zeal/issues/31)) ([1190ca7](https://github.com/taobojlen/django-zeal/commit/1190ca73b5e714c3ded3b979e0fb09935928abca)) (thanks @MaxTet1703!)
 * validate the allowlist ([#33](https://github.com/taobojlen/django-zeal/issues/33)) ([2aa1b42](https://github.com/taobojlen/django-zeal/commit/2aa1b42c3a441d6b66f52dd2ba70abc6ffe5efee))
 
 
