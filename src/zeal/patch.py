@@ -91,10 +91,19 @@ def patch_queryset_function(
             hasattr(queryset, "__zeal_patched") and queryset.__zeal_patched  # type: ignore
         ):
             return queryset
+
         if args and args != context.get("args"):
             context["args"] = args
-        if kwargs and kwargs != context.get("kwargs"):
-            context["kwargs"] = kwargs
+
+        # When comparing kwargs, we must use id() rather than == because
+        # __eq__ methods on model instances can trigger infinite recursion.
+        if kwargs:
+            existing_kwargs = context.get("kwargs")
+            if existing_kwargs is None or any(
+                id(v) != id(existing_kwargs.get(k)) for k, v in kwargs.items()
+            ):
+                context["kwargs"] = kwargs
+
         queryset._clone = patch_queryset_function(  # type: ignore
             queryset._clone,  # type: ignore
             parser,
