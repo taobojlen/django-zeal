@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/taobojlen/django-zeal/compare/v2.0.1...v2.0.2) (2024-11-22)
+
+
+### Bug Fixes
+
+* **#28:** prevent infinite recursion when custom __eq__ is used. ([#43](https://github.com/taobojlen/django-zeal/issues/43)) ([d157059](https://github.com/taobojlen/django-zeal/commit/d1570593bde02cd5f020fcbfb21350df03e43026))
+
 ## [2.0.1](https://github.com/taobojlen/django-zeal/compare/v2.0.0...v2.0.1) (2024-11-13)
 
 
