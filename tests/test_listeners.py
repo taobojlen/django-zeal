@@ -119,6 +119,24 @@ def test_can_use_fnmatch_pattern_in_allowlist_field(settings):
             _ = post.author
 
 
+def test_can_include_with_blocklist(settings):
+    settings.ZEAL_BLOCKLIST = [{"model": "social.Post", "field": "*"}]
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    PostFactory.create(author=user_1)
+    PostFactory.create(author=user_2)
+
+    # this will not raise, not in the blocklist
+    for user in User.objects.all():
+        _ = list(user.posts.all())
+
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.Post.author")
+    ):
+        for post in Post.objects.all():
+            _ = post.author
+
+
 def test_ignore_context_takes_precedence():
     """
     If you're within a `zeal_ignore` context, then even if some later code adds

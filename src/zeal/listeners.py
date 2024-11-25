@@ -65,6 +65,7 @@ class NPlusOneContext:
     )
     ignored: set[str] = field(default_factory=set)
     allowlist: list[AllowListEntry] = field(default_factory=list)
+    blocklist: list[AllowListEntry] = field(default_factory=list)
 
 
 _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
@@ -92,6 +93,15 @@ class Listener(ABC):
 
         return [*settings_allowlist, *_nplusone_context.get().allowlist]
 
+    @property
+    def _blocklist(self) -> list[AllowListEntry]:
+        if hasattr(settings, "ZEAL_BLOCKLIST"):
+            settings_blocklist = settings.ZEAL_BLOCKLIST
+        else:
+            settings_blocklist = []
+
+        return [*settings_blocklist, *_nplusone_context.get().blocklist]
+
     def _alert(
         self,
         model: type[models.Model],
@@ -118,6 +128,23 @@ class Listener(ABC):
                 break
 
         if is_allowlisted:
+            return
+
+        # IF no blocklist, proceed
+        # IF blocklist contains this model&field, alert
+        # IF blocklist does not contains this model&field, proceed
+        is_blocklisted = True
+        if self._blocklist:
+            is_blocklisted = False
+            for entry in self._blocklist:
+                model_match = fnmatch(
+                    f"{model._meta.app_label}.{model.__name__}", entry["model"]
+                )
+                field_match = fnmatch(field, entry.get("field") or "*")
+                if model_match and field_match:
+                    is_blocklisted = True
+                    break
+        if not is_blocklisted:
             return
 
         final_caller = get_caller()
@@ -206,8 +233,14 @@ def setup() -> Optional[Token]:
     context = _nplusone_context.get()
     if hasattr(settings, "ZEAL_ALLOWLIST"):
         _validate_allowlist(settings.ZEAL_ALLOWLIST)
+    if hasattr(settings, "ZEAL_BLOCKLIST"):
+        _validate_allowlist(settings.ZEAL_BLOCKLIST)
     return _nplusone_context.set(
-        NPlusOneContext(enabled=True, allowlist=context.allowlist)
+        NPlusOneContext(
+            enabled=True,
+            allowlist=context.allowlist,
+            blocklist=context.blocklist,
+        )
     )
 
 
@@ -240,6 +273,7 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
         calls=old_context.calls.copy(),
         ignored=old_context.ignored.copy(),
         allowlist=[*old_context.allowlist, *allowlist],
+        blocklist=[*old_context.blocklist],
     )
     token = _nplusone_context.set(new_context)
     try:
