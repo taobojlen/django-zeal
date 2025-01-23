@@ -4,8 +4,6 @@ asgiref==3.8.1
     # via
     #   django
     #   django-stubs
-backports-tarfile==1.2.0
-    # via jaraco-context
 build==1.2.1
     # via -r requirements-dev.in
 certifi==2024.6.2
@@ -25,8 +23,6 @@ django-stubs-ext==5.0.2
     # via django-stubs
 docutils==0.21.2
     # via readme-renderer
-exceptiongroup==1.2.2
-    # via pytest
 factory-boy==3.3.0
     # via -r requirements-dev.in
 faker==26.0.0
@@ -36,11 +32,7 @@ filelock==3.16.1
 idna==3.7
     # via requests
 importlib-metadata==8.5.0
-    # via
-    #   build
-    #   keyring
-    #   pytest-codspeed
-    #   twine
+    # via twine
 iniconfig==2.0.0
     # via pytest
 jaraco-classes==3.4.0
@@ -114,25 +106,20 @@ rich==13.9.4
     #   twine
 ruff==0.5.0
     # via -r requirements-dev.in
+setuptools==75.8.0
+    # via pytest-codspeed
 six==1.16.0
     # via python-dateutil
 sqlparse==0.5.0
     # via django
-tomli==2.1.0
-    # via
-    #   build
-    #   django-stubs
-    #   pytest
 twine==5.1.1
     # via -r requirements-dev.in
 types-pyyaml==6.0.12.20240311
     # via django-stubs
 typing-extensions==4.12.2
     # via
-    #   asgiref
     #   django-stubs
     #   django-stubs-ext
-    #   rich
 urllib3==2.2.2
     # via
     #   requests

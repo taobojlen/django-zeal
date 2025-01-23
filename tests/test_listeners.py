@@ -318,3 +318,9 @@ def test_validates_related_name_field_names():
     # User.blocked is a M2M field with an auto-generated related name (user_set)
     with zeal_ignore([{"model": "social.User", "field": "user_set"}]):
         pass
+
+
+@pytest.mark.nozeal
+def test_handles_zeal_ignore_when_disabled():
+    with zeal_ignore([{"model": "social.User", "field": "post"}]):
+        pass
