@@ -229,9 +229,10 @@ def zeal_context():
 
 @contextmanager
 def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
+    old_context = _nplusone_context.get()
     if allowlist is None:
         allowlist = [{"model": "*", "field": "*"}]
-    else:
+    elif old_context.enabled:
         _validate_allowlist(allowlist)
 
     old_context = _nplusone_context.get()
