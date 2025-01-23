@@ -40,6 +40,9 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
         # if this is an fnmatch, don't do anything
         if any(char in entry["model"] for char in fnmatch_chars):
             continue
+        if not ALL_APPS:
+            # zeal has not been initialized yet
+            continue
         if entry["model"] not in ALL_APPS:
             raise ZealConfigError(
                 f"Model '{entry['model']}' not found in installed Django models"
