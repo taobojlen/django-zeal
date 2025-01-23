@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3](https://github.com/taobojlen/django-zeal/compare/v2.0.2...v2.0.3) (2025-01-23)
+
+
+### Bug Fixes
+
+* allow zeal_ignore even when zeal is disabled ([#46](https://github.com/taobojlen/django-zeal/issues/46)) ([a412208](https://github.com/taobojlen/django-zeal/commit/a41220879b7f8f985a5b2088b106f66c8e587418))
+
 ## [2.0.2](https://github.com/taobojlen/django-zeal/compare/v2.0.1...v2.0.2) (2024-11-22)
 
 
