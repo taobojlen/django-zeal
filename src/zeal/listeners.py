@@ -123,7 +123,8 @@ class Listener(ABC):
         if is_allowlisted:
             return
 
-        final_caller = get_caller()
+        stack = get_stack()
+        final_caller = get_caller(stack)
         if should_include_all_callers:
             message = f"{message} with calls:\n"
             for i, caller in enumerate(calls):
@@ -157,9 +158,10 @@ class NPlusOneListener(Listener):
         context = _nplusone_context.get()
         if not context.enabled:
             return
-        caller = get_caller()
+        stack = get_stack()
+        caller = get_caller(stack)
         key = (model, field, f"{caller.filename}:{caller.lineno}")
-        context.calls[key].append(get_stack())
+        context.calls[key].append(stack)
         count = len(context.calls[key])
         if count >= self._threshold and instance_key not in context.ignored:
             message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"

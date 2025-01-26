@@ -21,12 +21,12 @@ def get_stack() -> list[inspect.FrameInfo]:
     ]
 
 
-def get_caller() -> inspect.FrameInfo:
+def get_caller(stack: list[inspect.FrameInfo]) -> inspect.FrameInfo:
     """
     Returns the filename and line number of the current caller,
     excluding any code in site-packages or zeal.
     """
-    return next(frame for frame in get_stack())
+    return next(frame for frame in stack)
 
 
 def is_single_query(query: Query):
