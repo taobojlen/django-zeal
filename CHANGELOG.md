@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.4](https://github.com/taobojlen/django-zeal/compare/v2.0.3...v2.0.4) (2025-01-26)
+
+
+### Bug Fixes
+
+* handle empty apps list ([6aa6113](https://github.com/taobojlen/django-zeal/commit/6aa611367f8fffd59508c56384e7613611ddf39a))
+
+
+### Performance Improvements
+
+* optimize stack fetching ([#50](https://github.com/taobojlen/django-zeal/issues/50)) ([ea88ffd](https://github.com/taobojlen/django-zeal/commit/ea88ffd295cf914e1ca7ceb011578e30ba2c8044))
+
 ## [2.0.3](https://github.com/taobojlen/django-zeal/compare/v2.0.2...v2.0.3) (2025-01-23)
 
 
