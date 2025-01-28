@@ -43,7 +43,7 @@ read on!
 > [!WARNING]  
 > You probably don't want to run zeal in production:
 > there is significant overhead to detecting N+1s, and my benchmarks show that it
-> can make your code between 2.5x - 7x slower.
+> can make your code 2.5x slower in some cases.
 
 ### Celery
 
