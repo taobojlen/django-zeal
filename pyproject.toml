@@ -30,7 +30,7 @@ extend-select = [
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["auto", ".venv"]
+exclude = ["auto", ".venv", ".worktrees"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "djangoproject.settings"

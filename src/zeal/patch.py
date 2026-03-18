@@ -231,15 +231,17 @@ def patch_many_to_many_descriptor():
             and context["manager_call_args"] is not None
             and "rel" in context["manager_call_args"]
         )
-        assert "args" in context and context["args"] is not None
+        assert "instance" in context and context["instance"] is not None
         rel = context["manager_call_args"]["rel"]
-        manager = context["args"][0]
-        model = manager.instance.__class__
-        related_model = manager.target_field.related_model
+        instance = context["instance"]
+        model = instance.__class__
         is_reverse = context["manager_call_args"]["reverse"]
-        field_name = (
-            rel.related_name if is_reverse else manager.prefetch_cache_name
-        )
+        if is_reverse:
+            field_name = rel.related_name
+            related_model = rel.related_model
+        else:
+            field_name = rel.field.name
+            related_model = rel.model
 
         model, field_name = parse_related_parts(
             model, field_name, related_model
@@ -247,7 +249,7 @@ def patch_many_to_many_descriptor():
         return {
             "model": model,
             "field": field_name,
-            "instance_key": get_instance_key(manager.instance),
+            "instance_key": get_instance_key(instance),
         }
 
     def patched_create_forward_many_to_many_manager(*args, **kwargs):
@@ -255,16 +257,25 @@ def patch_many_to_many_descriptor():
             create_forward_many_to_many_manager, *args, **kwargs
         )
         manager = create_forward_many_to_many_manager(*args, **kwargs)
-        manager.get_queryset = patch_queryset_function(
-            manager.get_queryset,
-            parser,
-            context={
-                "args": None,
-                "kwargs": None,
-                "manager_call_args": manager_call_args,
-                "instance": None,
-            },
-        )
+
+        def patch_init_method(func):
+            @functools.wraps(func)
+            def wrapper(self, instance):
+                self.get_queryset = patch_queryset_function(
+                    self.get_queryset,
+                    parser,
+                    context={
+                        "args": None,
+                        "kwargs": None,
+                        "manager_call_args": manager_call_args,
+                        "instance": instance,
+                    },
+                )
+                return func(self, instance)
+
+            return wrapper
+
+        manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
         return manager
 
     patch_module_function(
