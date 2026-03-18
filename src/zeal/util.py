@@ -1,11 +1,14 @@
+import os
 import sys
 
 from django.db.models.sql import Query
 
+_ZEAL_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def _is_internal_frame(fn: str) -> bool:
     """Check if a filename belongs to site-packages or zeal internals."""
-    return "site-packages" in fn or "/zeal/" in fn
+    return "site-packages" in fn or fn.startswith(_ZEAL_DIR)
 
 
 def get_caller() -> tuple[str, int, str]:
@@ -16,7 +19,7 @@ def get_caller() -> tuple[str, int, str]:
     frame = sys._getframe(1)
     while frame is not None:
         fn = frame.f_code.co_filename
-        if "site-packages" not in fn and "/zeal/" not in fn:
+        if not _is_internal_frame(fn):
             result = (fn, frame.f_lineno, frame.f_code.co_name)
             del frame
             return result
@@ -33,7 +36,7 @@ def get_stack() -> list[tuple[str, int, str]]:
     frame = sys._getframe(1)
     while frame is not None:
         fn = frame.f_code.co_filename
-        if "site-packages" not in fn and "/zeal/" not in fn:
+        if not _is_internal_frame(fn):
             result.append((fn, frame.f_lineno, frame.f_code.co_name))
         frame = frame.f_back
     return result
