@@ -493,6 +493,22 @@ def test_works_in_web_requests(client):
     assert response.status_code == 200
 
 
+def test_detects_nplusone_on_get():
+    users = UserFactory.create_batch(2)
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.get")
+    ):
+        for user in users:
+            _ = User.objects.get(pk=user.pk)
+
+
+def test_no_false_positive_on_get_on_different_lines():
+    users = UserFactory.create_batch(2)
+    # .get() on different lines should not trigger N+1
+    _ = User.objects.get(pk=users[0].pk)
+    _ = User.objects.get(pk=users[1].pk)
+
+
 def test_ignores_calls_on_different_lines():
     [user_1, user_2] = UserFactory.create_batch(2)
     PostFactory.create(author=user_1)
