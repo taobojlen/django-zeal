@@ -14,9 +14,12 @@ then the performance benchmark, outputting METRIC lines.
 For benchmark only: `.venv/bin/python auto/bench.py`
 
 ## Metrics
-- **Primary (optimization target)**: `overhead_ratio` (lower is better, 1.00 = zero overhead)
+- **Primary (optimization targets)**: Both must be optimized:
+  - `overhead_ratio` — zeal overhead with default settings (lower is better, 1.00 = zero overhead)
+  - `overhead_ratio_allcallers` — zeal overhead with `ZEAL_SHOW_ALL_CALLERS=True` (lower is better)
 - **Secondary (for context)**:
   - `zeal_ms` — median time with zeal enabled (ms)
+  - `zeal_allcallers_ms` — median time with zeal + SHOW_ALL_CALLERS (ms)
   - `baseline_ms` — median time without zeal (ms)
 
 ## Iteration Protocol
@@ -24,8 +27,8 @@ Each autoresearch iteration must:
 1. Make **exactly one change** (a single optimization idea)
 2. Run `./auto/autoresearch.sh`
 3. If tests fail → revert immediately (`git checkout -- .`)
-4. If overhead_ratio improved → commit with a message describing the change and the new metric
-5. If overhead_ratio regressed or unchanged → revert (`git checkout -- .`)
+4. If either overhead_ratio improved (without regressing the other) → commit with a message describing the change and the new metrics
+5. If both overhead_ratios regressed or unchanged → revert (`git checkout -- .`)
 6. Update the Progress Log below with the result
 
 ## Files in Scope
@@ -64,12 +67,19 @@ Known overhead sources (in estimated order of impact):
 - f-string key creation on every notify
 
 ## Baseline
-- **Commit**: 2aabdaa (HEAD of main)
+- **Commit**: 2aabdaa (HEAD of main, before any optimizations)
 - **overhead_ratio**: 1.30
+- **overhead_ratio_allcallers**: 1.30 (same path before iter1 split)
 - **zeal_ms**: 101
 - **baseline_ms**: 78
+
+## Current (post iter4)
+- **overhead_ratio**: 1.05
+- **overhead_ratio_allcallers**: 1.07
+- **baseline_ms**: 73.3
 
 ## Progress Log
 1. **e572720** — Replace `inspect.stack(context=0)` with `sys._getframe()` in `notify()` fast path; skip storing full stacks when `ZEAL_SHOW_ALL_CALLERS` is off. **overhead_ratio=1.06** (was 1.30). baseline_ms=77.7, zeal_ms=82.7. All 57 tests pass. KEPT.
 2. **58ce8a2** — Cache allowlisted (model, field) pairs in `NPlusOneContext._allowlisted_keys` so that once `_alert()` determines a pair is allowlisted, subsequent `notify()` calls skip `_alert()` entirely (avoiding message formatting, `_allowlist` property allocation, and `fnmatch()` checks on every call past threshold). **overhead_ratio=1.05** (was 1.06). baseline_ms=78.6, zeal_ms=82.6. All 57 tests pass. KEPT.
 3. **f4bc2c4** — Reduce per-call allocations: remove `@functools.wraps` from hot-path queryset closures (profile showed `update_wrapper` as top zeal overhead at 0.013s/9250 calls), use tuple key instead of f-string in notify(), append `None` instead of `[]`, cache `calls[key]` in local var, remove redundant `_nplusone_context.set()` from `notify()` and `ignore()`. **overhead_ratio=1.04** (was 1.05). Official benchmark range: 1.02–1.05 (median 1.04). Interleaved A/B benchmark: median_pair_ratio=1.034 (was 1.038). All 57 tests pass. KEPT.
+4. **0ec30ac** — Replace `inspect.stack(context=0)` with `sys._getframe()` in SHOW_ALL_CALLERS path: add `get_stack_fast()` that builds lightweight `(filename, lineno, funcname)` tuples instead of FrameInfo named tuples; eliminate redundant `get_stack()` call in `_alert()` by reusing already-captured stack data and using `get_caller_fast()`. **overhead_ratio=1.05, overhead_ratio_allcallers=1.07** (was 1.27). baseline_ms=73.3, zeal_ms=76.8, zeal_allcallers_ms=78.2. All 57 tests pass. KEPT.
