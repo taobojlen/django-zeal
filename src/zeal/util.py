@@ -1,4 +1,5 @@
 import inspect
+import sys
 
 from django.db.models.sql import Query
 
@@ -27,6 +28,24 @@ def get_caller(stack: list[inspect.FrameInfo]) -> inspect.FrameInfo:
     excluding any code in site-packages or zeal.
     """
     return next(frame for frame in stack)
+
+
+def get_caller_fast() -> tuple[str, int, str]:
+    """
+    Fast path: walk raw frame objects to find the first caller outside
+    site-packages/zeal. Returns (filename, lineno, funcname) without
+    allocating FrameInfo named tuples.
+    """
+    frame = sys._getframe(1)
+    while frame is not None:
+        fn = frame.f_code.co_filename
+        if not any(pattern in fn for pattern in PATTERNS):
+            result = (fn, frame.f_lineno, frame.f_code.co_name)
+            del frame
+            return result
+        frame = frame.f_back
+    # Fallback: should never happen in practice
+    return ("<unknown>", 0, "<unknown>")
 
 
 def is_single_query(query: Query):

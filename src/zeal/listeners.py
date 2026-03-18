@@ -12,7 +12,7 @@ from typing import Optional, TypedDict
 from django.conf import settings
 from django.db import models
 
-from zeal.util import get_caller, get_stack
+from zeal.util import get_caller, get_caller_fast, get_stack
 
 from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealConfigError, ZealError
@@ -158,10 +158,19 @@ class NPlusOneListener(Listener):
         context = _nplusone_context.get()
         if not context.enabled:
             return
-        stack = get_stack()
-        caller = get_caller(stack)
-        key = (model, field, f"{caller.filename}:{caller.lineno}")
-        context.calls[key].append(stack)
+        should_include_all_callers = (
+            hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
+            and settings.ZEAL_SHOW_ALL_CALLERS
+        )
+        if should_include_all_callers:
+            stack = get_stack()
+            caller = get_caller(stack)
+            key = (model, field, f"{caller.filename}:{caller.lineno}")
+            context.calls[key].append(stack)
+        else:
+            fn, lineno, _ = get_caller_fast()
+            key = (model, field, f"{fn}:{lineno}")
+            context.calls[key].append([])
         count = len(context.calls[key])
         if count >= self._threshold and instance_key not in context.ignored:
             message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
