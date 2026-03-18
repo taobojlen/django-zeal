@@ -73,10 +73,10 @@ Known overhead sources (in estimated order of impact):
 - **zeal_ms**: 101
 - **baseline_ms**: 78
 
-## Current (post iter6)
-- **overhead_ratio**: 1.04
-- **overhead_ratio_allcallers**: 1.03
-- **baseline_ms**: 74.4
+## Current (post iter7 — noise floor reached)
+- **overhead_ratio**: 1.02–1.09 (varies by run, noise-dominated)
+- **overhead_ratio_allcallers**: 1.02–1.10 (varies by run, noise-dominated)
+- **baseline_ms**: 69.5–72.5
 
 ## Progress Log
 1. **e572720** — Replace `inspect.stack(context=0)` with `sys._getframe()` in `notify()` fast path; skip storing full stacks when `ZEAL_SHOW_ALL_CALLERS` is off. **overhead_ratio=1.06** (was 1.30). baseline_ms=77.7, zeal_ms=82.7. All 57 tests pass. KEPT.
@@ -85,3 +85,4 @@ Known overhead sources (in estimated order of impact):
 4. **0ec30ac** — Replace `inspect.stack(context=0)` with `sys._getframe()` in SHOW_ALL_CALLERS path: add `get_stack_fast()` that builds lightweight `(filename, lineno, funcname)` tuples instead of FrameInfo named tuples; eliminate redundant `get_stack()` call in `_alert()` by reusing already-captured stack data and using `get_caller_fast()`. **overhead_ratio=1.05, overhead_ratio_allcallers=1.07** (was 1.27). baseline_ms=73.3, zeal_ms=76.8, zeal_allcallers_ms=78.2. All 57 tests pass. KEPT.
 5. **29f0d47** — Replace `any(pattern in fn for pattern in PATTERNS)` with two direct substring checks (`"site-packages" not in fn and "/zeal/" not in fn`) in `get_caller_fast()`, `get_stack_fast()`, and `get_stack()`. Eliminates generator object allocation and 4-item iteration on every frame; micro-benchmark shows ~5x speedup for this operation. **overhead_ratio=1.05, overhead_ratio_allcallers=1.06** (was 1.07). baseline_ms=74.3, zeal_ms=78.5, zeal_allcallers_ms=79.1. All 57 tests pass. KEPT.
 6. **3e89e08** — Lazy-cache `ZEAL_SHOW_ALL_CALLERS` and `ZEAL_NPLUSONE_THRESHOLD` settings on the `NPlusOneContext` dataclass. On the first `notify()` call per context, settings are read via `hasattr()` and cached; subsequent calls (~429 per workload) use the cached value directly, eliminating ~1.2us of `hasattr(settings, ...)` overhead per call (two `hasattr` calls at ~0.6us each). Profiling showed these two `hasattr` calls accounted for ~0.5ms of the ~2.2ms total overhead. **overhead_ratio=1.04, overhead_ratio_allcallers=1.03** (was 1.05/1.06). Across 4 benchmark runs: overhead_ratio ranged 0.99-1.06, overhead_ratio_allcallers ranged 0.98-1.07. All 57 tests pass. KEPT.
+7. **NOISE FLOOR REACHED** — Detailed profiling showed the total differential zeal overhead is ~0.23ms per workload (430 notify() calls at ~0.53us extra each), representing ~0.3% of the ~75ms baseline. Benchmark measurement noise (stdev ~2-5ms, or ~3-7%) is 10-20x larger than the signal. Three consecutive benchmark runs on identical code yielded overhead_ratio = 1.03, 1.09, 1.02 — confirming the remaining variance is measurement noise, not real overhead. Component breakdown: get_caller_fast() frame walking is the single largest remaining cost at 0.199us/call (29% of notify()), but it's irreducible since it must walk ~4.7 frames on average to find user code. No change made. NOISE FLOOR.
