@@ -316,6 +316,11 @@ def patch_global_queryset():
     def patch_get(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            qs = args[0]
+            # Detect N+1 on standalone .get() calls (e.g. in a loop).
+            # Skip if the queryset is already tracked via a relation descriptor.
+            if not getattr(qs, "__zeal_patched", False):
+                n_plus_one_listener.notify(qs.model, "get", instance_key=None)
             ret = func(*args, **kwargs)
             n_plus_one_listener.ignore(get_instance_key(ret))
             return ret
