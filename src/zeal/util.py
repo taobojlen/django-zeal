@@ -1,32 +1,45 @@
-import inspect
+import os
+import sys
 
 from django.db.models.sql import Query
 
-PATTERNS = [
-    "site-packages",
-    "zeal/listeners.py",
-    "zeal/patch.py",
-    "zeal/util.py",
-]
+_ZEAL_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def get_stack() -> list[inspect.FrameInfo]:
-    """
-    Returns the current call stack, excluding any code in site-packages or zeal.
-    """
-    return [
-        frame
-        for frame in inspect.stack(context=0)[1:]
-        if not any(pattern in frame.filename for pattern in PATTERNS)
-    ]
+def _is_internal_frame(fn: str) -> bool:
+    """Check if a filename belongs to site-packages or zeal internals."""
+    return "site-packages" in fn or fn.startswith(_ZEAL_DIR)
 
 
-def get_caller(stack: list[inspect.FrameInfo]) -> inspect.FrameInfo:
+def get_caller() -> tuple[str, int, str]:
     """
-    Returns the filename and line number of the current caller,
-    excluding any code in site-packages or zeal.
+    Returns (filename, lineno, funcname) of the first caller outside
+    site-packages/zeal, walking raw frame objects.
     """
-    return next(frame for frame in stack)
+    frame = sys._getframe(1)
+    while frame is not None:
+        fn = frame.f_code.co_filename
+        if not _is_internal_frame(fn):
+            result = (fn, frame.f_lineno, frame.f_code.co_name)
+            del frame
+            return result
+        frame = frame.f_back
+    return ("<unknown>", 0, "<unknown>")
+
+
+def get_stack() -> list[tuple[str, int, str]]:
+    """
+    Returns the current call stack as (filename, lineno, funcname) tuples,
+    excluding site-packages and zeal internals.
+    """
+    result = []
+    frame = sys._getframe(1)
+    while frame is not None:
+        fn = frame.f_code.co_filename
+        if not _is_internal_frame(fn):
+            result.append((fn, frame.f_lineno, frame.f_code.co_name))
+        frame = frame.f_back
+    return result
 
 
 def is_single_query(query: Query):

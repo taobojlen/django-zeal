@@ -1,4 +1,3 @@
-import inspect
 import logging
 import warnings
 from abc import ABC, abstractmethod
@@ -7,7 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Optional, TypedDict
+from typing import Optional, TypedDict, Union
 
 from django.conf import settings
 from django.db import models
@@ -25,8 +24,11 @@ class QuerySource(TypedDict):
     instance_key: Optional[str]  # e.g. `User:123`
 
 
-# tuple of (model, field, caller)
-CountsKey = tuple[type[models.Model], str, str]
+# tuple of (model, field, caller) or (model, field, filename, lineno)
+CountsKey = Union[
+    tuple[type[models.Model], str, str],
+    tuple[type[models.Model], str, str, int],
+]
 
 
 class AllowListEntry(TypedDict):
@@ -63,11 +65,20 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
 @dataclass
 class NPlusOneContext:
     enabled: bool = False
-    calls: dict[CountsKey, list[list[inspect.FrameInfo]]] = field(
+    calls: dict[CountsKey, list] = field(
         default_factory=lambda: defaultdict(list)
     )
     ignored: set[str] = field(default_factory=set)
     allowlist: list[AllowListEntry] = field(default_factory=list)
+    # Cache for keys that have already been checked and found allowlisted,
+    # so we can skip the expensive _alert() path on subsequent accesses.
+    _allowlisted_keys: set[tuple[type[models.Model], str]] = field(
+        default_factory=set
+    )
+    # Cached settings values, lazily populated on first notify() call
+    # to avoid expensive hasattr(settings, ...) on every notify() call.
+    _threshold: Optional[int] = None
+    _show_all_callers: Optional[bool] = None
 
 
 _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
@@ -100,7 +111,7 @@ class Listener(ABC):
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[list[inspect.FrameInfo]],
+        calls: list,
     ):
         should_error = (
             settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
@@ -121,26 +132,44 @@ class Listener(ABC):
                 break
 
         if is_allowlisted:
+            _nplusone_context.get()._allowlisted_keys.add((model, field))
             return
 
-        stack = get_stack()
-        final_caller = get_caller(stack)
         if should_include_all_callers:
+            # calls contains lists of (filename, lineno, funcname) tuples
+            # Use the first frame of the first call as the "caller" for warn_explicit
+            first_call = calls[0] if calls else None
+            if first_call and len(first_call) > 0:
+                frame = first_call[0]
+                # Handle both tuple format (filename, lineno, funcname) and FrameInfo
+                if isinstance(frame, tuple):
+                    caller_filename, caller_lineno, _ = frame
+                else:
+                    caller_filename, caller_lineno = (
+                        frame.filename,
+                        frame.lineno,
+                    )
+            else:
+                caller_filename, caller_lineno = "<unknown>", 0
             message = f"{message} with calls:\n"
             for i, caller in enumerate(calls):
                 message += f"CALL {i+1}:\n"
-                for frame in caller:
-                    message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
+                for frame in caller or []:
+                    if isinstance(frame, tuple):
+                        message += f"  {frame[0]}:{frame[1]} in {frame[2]}\n"
+                    else:
+                        message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
         else:
-            message = f"{message} at {final_caller.filename}:{final_caller.lineno} in {final_caller.function}"
+            caller_filename, caller_lineno, caller_funcname = get_caller()
+            message = f"{message} at {caller_filename}:{caller_lineno} in {caller_funcname}"
         if should_error:
             raise self.error_class(message)
         else:
             warnings.warn_explicit(
                 message,
                 UserWarning,
-                filename=final_caller.filename,
-                lineno=final_caller.lineno,
+                filename=caller_filename,
+                lineno=caller_lineno,
             )
 
 
@@ -158,15 +187,40 @@ class NPlusOneListener(Listener):
         context = _nplusone_context.get()
         if not context.enabled:
             return
-        stack = get_stack()
-        caller = get_caller(stack)
-        key = (model, field, f"{caller.filename}:{caller.lineno}")
-        context.calls[key].append(stack)
-        count = len(context.calls[key])
-        if count >= self._threshold and instance_key not in context.ignored:
-            message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
-            self._alert(model, field, message, context.calls[key])
-        _nplusone_context.set(context)
+        # Lazy-cache settings on first call to avoid hasattr() overhead per call
+        show_all_callers = context._show_all_callers
+        if show_all_callers is None:
+            show_all_callers = (
+                hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
+                and settings.ZEAL_SHOW_ALL_CALLERS
+            )
+            context._show_all_callers = show_all_callers
+        if show_all_callers:
+            stack = get_stack()
+            caller_fn, caller_lineno, _ = stack[0]
+            key = (model, field, caller_fn, caller_lineno)
+            context.calls[key].append(stack)
+            count = len(context.calls[key])
+        else:
+            fn, lineno, _ = get_caller()
+            key = (model, field, fn, lineno)
+            calls_list = context.calls[key]
+            calls_list.append(None)
+            count = len(calls_list)
+        threshold = context._threshold
+        if threshold is None:
+            threshold = (
+                settings.ZEAL_NPLUSONE_THRESHOLD
+                if hasattr(settings, "ZEAL_NPLUSONE_THRESHOLD")
+                else 2
+            )
+            context._threshold = threshold
+        if count >= threshold and instance_key not in context.ignored:
+            # Skip _alert() entirely if this (model, field) was already allowlisted
+            alert_key = (model, field)
+            if alert_key not in context._allowlisted_keys:
+                message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
+                self._alert(model, field, message, context.calls[key])
 
     def ignore(self, instance_key: Optional[str]):
         """
@@ -179,21 +233,13 @@ class NPlusOneListener(Listener):
         if not instance_key:
             return
         context.ignored.add(instance_key)
-        _nplusone_context.set(context)
-
-    @property
-    def _threshold(self) -> int:
-        if hasattr(settings, "ZEAL_NPLUSONE_THRESHOLD"):
-            return settings.ZEAL_NPLUSONE_THRESHOLD
-        else:
-            return 2
 
     def _alert(
         self,
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[list[inspect.FrameInfo]],
+        calls: list,
     ):
         super()._alert(model, field, message, calls)
         nplusone_detected.send(

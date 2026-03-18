@@ -55,7 +55,6 @@ def patch_queryset_fetch_all(
 ):
     fetch_all = queryset._fetch_all
 
-    @functools.wraps(fetch_all)
     def wrapper(*args, **kwargs):
         if queryset._result_cache is None:
             parsed = parser(context)
@@ -82,7 +81,6 @@ def patch_queryset_function(
             "instance": None,
         }
 
-    @functools.wraps(queryset_func)
     def wrapper(*args, **kwargs):
         queryset = queryset_func(*args, **kwargs)
 
