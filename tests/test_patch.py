@@ -17,6 +17,53 @@ def test_handles_calling_queryset_many_times():
         list(user.posts.all())
 
 
+def test_m2m_prefetch_preserves_result_cache():
+    """
+    Regression test for https://github.com/taobojlen/django-zeal/issues/51
+
+    When a M2M field is prefetched, accessing .all() should return
+    the prefetched queryset with _result_cache intact.
+    """
+    u1 = UserFactory.create()
+    u2 = UserFactory.create()
+    u3 = UserFactory.create()
+    u1.following.set([u2, u3])
+
+    users = list(User.objects.prefetch_related("following").filter(pk=u1.pk))
+    user = users[0]
+    qs = user.following.all()
+    assert qs._result_cache is not None
+    result = list(qs)
+    assert len(result) == 2
+
+
+def test_m2m_set_then_prefetch_preserves_result_cache():
+    """
+    Regression test for https://github.com/taobojlen/django-zeal/issues/51
+
+    Calling .set() clears the prefetch cache. A subsequent prefetch_related
+    query should correctly repopulate _result_cache.
+    """
+    u1 = UserFactory.create()
+    u2 = UserFactory.create()
+    u3 = UserFactory.create()
+
+    # Prefetch first (empty following)
+    users = list(User.objects.prefetch_related("following").filter(pk=u1.pk))
+    user = users[0]
+
+    # Set following on the prefetched instance
+    user.following.set([u2, u3])
+
+    # Re-prefetch
+    users = list(User.objects.prefetch_related("following").filter(pk=u1.pk))
+    user = users[0]
+    qs = user.following.all()
+    assert qs._result_cache is not None
+    result = list(qs)
+    assert len(result) == 2
+
+
 def test_handles_empty_querysets():
     User.objects.none().first()
 
