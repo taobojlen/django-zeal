@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Optional, TypedDict
+from typing import Optional, TypedDict, Union
 
 from django.conf import settings
 from django.db import models
@@ -25,8 +25,11 @@ class QuerySource(TypedDict):
     instance_key: Optional[str]  # e.g. `User:123`
 
 
-# tuple of (model, field, caller)
-CountsKey = tuple[type[models.Model], str, str]
+# tuple of (model, field, caller) or (model, field, filename, lineno)
+CountsKey = Union[
+    tuple[type[models.Model], str, str],
+    tuple[type[models.Model], str, str, int],
+]
 
 
 class AllowListEntry(TypedDict):
@@ -63,7 +66,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
 @dataclass
 class NPlusOneContext:
     enabled: bool = False
-    calls: dict[CountsKey, list[list[inspect.FrameInfo]]] = field(
+    calls: dict[CountsKey, list[Optional[list[inspect.FrameInfo]]]] = field(
         default_factory=lambda: defaultdict(list)
     )
     ignored: set[str] = field(default_factory=set)
@@ -105,7 +108,7 @@ class Listener(ABC):
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[list[inspect.FrameInfo]],
+        calls: list[Optional[list[inspect.FrameInfo]]],
     ):
         should_error = (
             settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
@@ -135,7 +138,7 @@ class Listener(ABC):
             message = f"{message} with calls:\n"
             for i, caller in enumerate(calls):
                 message += f"CALL {i+1}:\n"
-                for frame in caller:
+                for frame in caller or []:
                     message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
         else:
             message = f"{message} at {final_caller.filename}:{final_caller.lineno} in {final_caller.function}"
@@ -173,18 +176,19 @@ class NPlusOneListener(Listener):
             caller = get_caller(stack)
             key = (model, field, f"{caller.filename}:{caller.lineno}")
             context.calls[key].append(stack)
+            count = len(context.calls[key])
         else:
             fn, lineno, _ = get_caller_fast()
-            key = (model, field, f"{fn}:{lineno}")
-            context.calls[key].append([])
-        count = len(context.calls[key])
+            key = (model, field, fn, lineno)
+            calls_list = context.calls[key]
+            calls_list.append(None)
+            count = len(calls_list)
         if count >= self._threshold and instance_key not in context.ignored:
             # Skip _alert() entirely if this (model, field) was already allowlisted
             alert_key = (model, field)
             if alert_key not in context._allowlisted_keys:
                 message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
                 self._alert(model, field, message, context.calls[key])
-        _nplusone_context.set(context)
 
     def ignore(self, instance_key: Optional[str]):
         """
@@ -197,7 +201,6 @@ class NPlusOneListener(Listener):
         if not instance_key:
             return
         context.ignored.add(instance_key)
-        _nplusone_context.set(context)
 
     @property
     def _threshold(self) -> int:
@@ -211,7 +214,7 @@ class NPlusOneListener(Listener):
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[list[inspect.FrameInfo]],
+        calls: list[Optional[list[inspect.FrameInfo]]],
     ):
         super()._alert(model, field, message, calls)
         nplusone_detected.send(
