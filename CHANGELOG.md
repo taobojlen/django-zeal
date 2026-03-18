@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.5](https://github.com/taobojlen/django-zeal/compare/v2.0.4...v2.0.5) (2026-03-18)
+
+
+### Bug Fixes
+
+* patch M2M descriptor per-instance to preserve prefetch _result_cache ([#51](https://github.com/taobojlen/django-zeal/issues/51)) ([#54](https://github.com/taobojlen/django-zeal/issues/54)) ([42e4a12](https://github.com/taobojlen/django-zeal/commit/42e4a124e60bcbbba75eaaa69d7e0808e1591f3d))
+
+
+### Performance Improvements
+
+* reduce detection overhead from ~1.30x to ~1.03x ([#52](https://github.com/taobojlen/django-zeal/issues/52)) ([6b15475](https://github.com/taobojlen/django-zeal/commit/6b15475eba08277a46d3dc47f6d7dcc0542c4d49))
+
 ## [2.0.4](https://github.com/taobojlen/django-zeal/compare/v2.0.3...v2.0.4) (2025-01-26)
 
 
