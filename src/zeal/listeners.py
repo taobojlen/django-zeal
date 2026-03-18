@@ -75,6 +75,10 @@ class NPlusOneContext:
     _allowlisted_keys: set[tuple[type[models.Model], str]] = field(
         default_factory=set
     )
+    # Cached settings values, lazily populated on first notify() call
+    # to avoid expensive hasattr(settings, ...) on every notify() call.
+    _threshold: Optional[int] = None
+    _show_all_callers: Optional[bool] = None
 
 
 _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
@@ -183,11 +187,15 @@ class NPlusOneListener(Listener):
         context = _nplusone_context.get()
         if not context.enabled:
             return
-        should_include_all_callers = (
-            hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
-            and settings.ZEAL_SHOW_ALL_CALLERS
-        )
-        if should_include_all_callers:
+        # Lazy-cache settings on first call to avoid hasattr() overhead per call
+        show_all_callers = context._show_all_callers
+        if show_all_callers is None:
+            show_all_callers = (
+                hasattr(settings, "ZEAL_SHOW_ALL_CALLERS")
+                and settings.ZEAL_SHOW_ALL_CALLERS
+            )
+            context._show_all_callers = show_all_callers
+        if show_all_callers:
             stack = get_stack_fast()
             caller_fn, caller_lineno, _ = stack[0]
             key = (model, field, caller_fn, caller_lineno)
@@ -199,7 +207,15 @@ class NPlusOneListener(Listener):
             calls_list = context.calls[key]
             calls_list.append(None)
             count = len(calls_list)
-        if count >= self._threshold and instance_key not in context.ignored:
+        threshold = context._threshold
+        if threshold is None:
+            threshold = (
+                settings.ZEAL_NPLUSONE_THRESHOLD
+                if hasattr(settings, "ZEAL_NPLUSONE_THRESHOLD")
+                else 2
+            )
+            context._threshold = threshold
+        if count >= threshold and instance_key not in context.ignored:
             # Skip _alert() entirely if this (model, field) was already allowlisted
             alert_key = (model, field)
             if alert_key not in context._allowlisted_keys:
@@ -217,13 +233,6 @@ class NPlusOneListener(Listener):
         if not instance_key:
             return
         context.ignored.add(instance_key)
-
-    @property
-    def _threshold(self) -> int:
-        if hasattr(settings, "ZEAL_NPLUSONE_THRESHOLD"):
-            return settings.ZEAL_NPLUSONE_THRESHOLD
-        else:
-            return 2
 
     def _alert(
         self,
