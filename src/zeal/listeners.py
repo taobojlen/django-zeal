@@ -1,4 +1,3 @@
-import inspect
 import logging
 import warnings
 from abc import ABC, abstractmethod
@@ -12,7 +11,7 @@ from typing import Optional, TypedDict, Union
 from django.conf import settings
 from django.db import models
 
-from zeal.util import get_caller, get_caller_fast, get_stack
+from zeal.util import get_caller_fast, get_stack_fast
 
 from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealConfigError, ZealError
@@ -66,7 +65,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
 @dataclass
 class NPlusOneContext:
     enabled: bool = False
-    calls: dict[CountsKey, list[Optional[list[inspect.FrameInfo]]]] = field(
+    calls: dict[CountsKey, list] = field(
         default_factory=lambda: defaultdict(list)
     )
     ignored: set[str] = field(default_factory=set)
@@ -108,7 +107,7 @@ class Listener(ABC):
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[Optional[list[inspect.FrameInfo]]],
+        calls: list,
     ):
         should_error = (
             settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
@@ -132,24 +131,41 @@ class Listener(ABC):
             _nplusone_context.get()._allowlisted_keys.add((model, field))
             return
 
-        stack = get_stack()
-        final_caller = get_caller(stack)
         if should_include_all_callers:
+            # calls contains lists of (filename, lineno, funcname) tuples
+            # Use the first frame of the first call as the "caller" for warn_explicit
+            first_call = calls[0] if calls else None
+            if first_call and len(first_call) > 0:
+                frame = first_call[0]
+                # Handle both tuple format (filename, lineno, funcname) and FrameInfo
+                if isinstance(frame, tuple):
+                    caller_filename, caller_lineno, _ = frame
+                else:
+                    caller_filename, caller_lineno = (
+                        frame.filename,
+                        frame.lineno,
+                    )
+            else:
+                caller_filename, caller_lineno = "<unknown>", 0
             message = f"{message} with calls:\n"
             for i, caller in enumerate(calls):
                 message += f"CALL {i+1}:\n"
                 for frame in caller or []:
-                    message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
+                    if isinstance(frame, tuple):
+                        message += f"  {frame[0]}:{frame[1]} in {frame[2]}\n"
+                    else:
+                        message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
         else:
-            message = f"{message} at {final_caller.filename}:{final_caller.lineno} in {final_caller.function}"
+            caller_filename, caller_lineno, caller_funcname = get_caller_fast()
+            message = f"{message} at {caller_filename}:{caller_lineno} in {caller_funcname}"
         if should_error:
             raise self.error_class(message)
         else:
             warnings.warn_explicit(
                 message,
                 UserWarning,
-                filename=final_caller.filename,
-                lineno=final_caller.lineno,
+                filename=caller_filename,
+                lineno=caller_lineno,
             )
 
 
@@ -172,9 +188,9 @@ class NPlusOneListener(Listener):
             and settings.ZEAL_SHOW_ALL_CALLERS
         )
         if should_include_all_callers:
-            stack = get_stack()
-            caller = get_caller(stack)
-            key = (model, field, f"{caller.filename}:{caller.lineno}")
+            stack = get_stack_fast()
+            caller_fn, caller_lineno, _ = stack[0]
+            key = (model, field, caller_fn, caller_lineno)
             context.calls[key].append(stack)
             count = len(context.calls[key])
         else:
@@ -214,7 +230,7 @@ class NPlusOneListener(Listener):
         model: type[models.Model],
         field: str,
         message: str,
-        calls: list[Optional[list[inspect.FrameInfo]]],
+        calls: list,
     ):
         super()._alert(model, field, message, calls)
         nplusone_detected.send(

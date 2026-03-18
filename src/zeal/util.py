@@ -48,6 +48,23 @@ def get_caller_fast() -> tuple[str, int, str]:
     return ("<unknown>", 0, "<unknown>")
 
 
+def get_stack_fast() -> list[tuple[str, int, str]]:
+    """
+    Fast path: walk raw frame objects to build a filtered stack of
+    (filename, lineno, funcname) tuples, skipping site-packages/zeal frames.
+    Much cheaper than inspect.stack(context=0) which creates FrameInfo
+    named tuples for every frame.
+    """
+    result = []
+    frame = sys._getframe(1)
+    while frame is not None:
+        fn = frame.f_code.co_filename
+        if not any(pattern in fn for pattern in PATTERNS):
+            result.append((fn, frame.f_lineno, frame.f_code.co_name))
+        frame = frame.f_back
+    return result
+
+
 def is_single_query(query: Query):
     return (
         query.high_mark is not None and query.high_mark - query.low_mark == 1
