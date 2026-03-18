@@ -11,7 +11,7 @@ from typing import Optional, TypedDict, Union
 from django.conf import settings
 from django.db import models
 
-from zeal.util import get_caller_fast, get_stack_fast
+from zeal.util import get_caller, get_stack
 
 from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealConfigError, ZealError
@@ -160,7 +160,7 @@ class Listener(ABC):
                     else:
                         message += f"  {frame.filename}:{frame.lineno} in {frame.function}\n"
         else:
-            caller_filename, caller_lineno, caller_funcname = get_caller_fast()
+            caller_filename, caller_lineno, caller_funcname = get_caller()
             message = f"{message} at {caller_filename}:{caller_lineno} in {caller_funcname}"
         if should_error:
             raise self.error_class(message)
@@ -196,13 +196,13 @@ class NPlusOneListener(Listener):
             )
             context._show_all_callers = show_all_callers
         if show_all_callers:
-            stack = get_stack_fast()
+            stack = get_stack()
             caller_fn, caller_lineno, _ = stack[0]
             key = (model, field, caller_fn, caller_lineno)
             context.calls[key].append(stack)
             count = len(context.calls[key])
         else:
-            fn, lineno, _ = get_caller_fast()
+            fn, lineno, _ = get_caller()
             key = (model, field, fn, lineno)
             calls_list = context.calls[key]
             calls_list.append(None)
