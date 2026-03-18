@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/taobojlen/django-zeal/compare/v2.0.5...v2.1.0) (2026-03-18)
+
+
+### Features
+
+* detect N+1 queries on .get() calls ([#53](https://github.com/taobojlen/django-zeal/issues/53)) ([a35340d](https://github.com/taobojlen/django-zeal/commit/a35340d4a6be7c3c0d79e173b6850f81d4a0e9b0)), closes [#7](https://github.com/taobojlen/django-zeal/issues/7)
+
 ## [2.0.5](https://github.com/taobojlen/django-zeal/compare/v2.0.4...v2.0.5) (2026-03-18)
 
 
