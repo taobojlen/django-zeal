@@ -68,6 +68,11 @@ class NPlusOneContext:
     )
     ignored: set[str] = field(default_factory=set)
     allowlist: list[AllowListEntry] = field(default_factory=list)
+    # Cache for keys that have already been checked and found allowlisted,
+    # so we can skip the expensive _alert() path on subsequent accesses.
+    _allowlisted_keys: set[tuple[type[models.Model], str]] = field(
+        default_factory=set
+    )
 
 
 _nplusone_context: ContextVar[NPlusOneContext] = ContextVar(
@@ -121,6 +126,7 @@ class Listener(ABC):
                 break
 
         if is_allowlisted:
+            _nplusone_context.get()._allowlisted_keys.add((model, field))
             return
 
         stack = get_stack()
@@ -173,8 +179,11 @@ class NPlusOneListener(Listener):
             context.calls[key].append([])
         count = len(context.calls[key])
         if count >= self._threshold and instance_key not in context.ignored:
-            message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
-            self._alert(model, field, message, context.calls[key])
+            # Skip _alert() entirely if this (model, field) was already allowlisted
+            alert_key = (model, field)
+            if alert_key not in context._allowlisted_keys:
+                message = f"N+1 detected on {model._meta.app_label}.{model.__name__}.{field}"
+                self._alert(model, field, message, context.calls[key])
         _nplusone_context.set(context)
 
     def ignore(self, instance_key: Optional[str]):
