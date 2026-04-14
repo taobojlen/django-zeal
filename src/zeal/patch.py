@@ -140,14 +140,20 @@ def _wrap_prefetch_queryset(original, notify_fn):
     """Wrap a get_prefetch_queryset method to detect N+1s from
     standalone prefetch_related_objects() calls.
 
-    Calls notify_fn() unless we're inside a queryset's own
-    prefetch path. Suppresses the _fetch_all notify on the
-    returned queryset to avoid double-counting.
+    Only notifies when called with a single instance — bulk calls
+    like prefetch_related_objects(all_objs, "field") are correct
+    usage and must not be flagged. notify_fn receives the single
+    instance so it can pass its instance_key to the listener, which
+    lets the existing ignored-set (singly-loaded instances) suppress
+    false positives from .get()-then-prefetch.
     """
 
     def patched(self, instances, queryset=None):
-        if not _in_queryset_prefetch.get():
-            notify_fn(self, instances)
+        if (
+            not _in_queryset_prefetch.get()
+            and len(instances) == 1
+        ):
+            notify_fn(self, instances[0])
         token = _in_prefetch_queryset.set(True)
         try:
             result = original(self, instances, queryset)
@@ -188,8 +194,10 @@ def patch_forward_many_to_one_descriptor():
 
     ForwardManyToOneDescriptor.get_prefetch_queryset = _wrap_prefetch_queryset(
         ForwardManyToOneDescriptor.get_prefetch_queryset,
-        lambda self, instances: n_plus_one_listener.notify(
-            self.field.model, self.field.name, instance_key=None
+        lambda self, instance: n_plus_one_listener.notify(
+            self.field.model,
+            self.field.name,
+            instance_key=get_instance_key(instance),
         ),
     )
 
@@ -246,12 +254,14 @@ def patch_reverse_many_to_one_descriptor():
 
         manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
 
-        def notify_fn(self, instances):
+        def notify_fn(self, instance):
             rel = manager_call_args["rel"]
             model, field_name = parse_related_parts(
                 rel.model, rel.related_name, rel.related_model
             )
-            n_plus_one_listener.notify(model, field_name, instance_key=None)
+            n_plus_one_listener.notify(
+                model, field_name, instance_key=get_instance_key(instance)
+            )
 
         manager.get_prefetch_queryset = _wrap_prefetch_queryset(  # type: ignore
             manager.get_prefetch_queryset,  # type: ignore
@@ -288,10 +298,10 @@ def patch_reverse_one_to_one_descriptor():
 
     ReverseOneToOneDescriptor.get_prefetch_queryset = _wrap_prefetch_queryset(
         ReverseOneToOneDescriptor.get_prefetch_queryset,
-        lambda self, instances: n_plus_one_listener.notify(
+        lambda self, instance: n_plus_one_listener.notify(
             self.related.field.related_model,
             self.related.field.remote_field.name,
-            instance_key=None,
+            instance_key=get_instance_key(instance),
         ),
     )
 
@@ -349,7 +359,7 @@ def patch_many_to_many_descriptor():
 
         manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
 
-        def notify_fn(self, instances):
+        def notify_fn(self, instance):
             rel = manager_call_args["rel"]
             is_reverse = manager_call_args["reverse"]
             if is_reverse:
@@ -358,11 +368,13 @@ def patch_many_to_many_descriptor():
             else:
                 field_name = rel.field.name
                 related_model = rel.model
-            model = instances[0].__class__
+            model = instance.__class__
             model, field_name = parse_related_parts(
                 model, field_name, related_model
             )
-            n_plus_one_listener.notify(model, field_name, instance_key=None)
+            n_plus_one_listener.notify(
+                model, field_name, instance_key=get_instance_key(instance)
+            )
 
         manager.get_prefetch_queryset = _wrap_prefetch_queryset(  # type: ignore
             manager.get_prefetch_queryset,  # type: ignore

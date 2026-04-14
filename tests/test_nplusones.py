@@ -649,3 +649,18 @@ class TestPrefetchRelatedObjects:
         user_2.following.add(user_1)
         users = list(User.objects.all())
         prefetch_related_objects(users, "followers")
+
+    def test_singly_loaded_prefetch_is_not_n_plus_one(self):
+        """prefetch_related_objects on a singly-loaded instance must
+        not trip the source-line threshold. Singly-loaded instances
+        are registered in the listener's ignored set, so the notify
+        path should filter them out by instance_key."""
+        user_1, user_2 = UserFactory.create_batch(2)
+        PostFactory.create(author=user_1)
+        PostFactory.create(author=user_2)
+
+        def prefetch_one(user):
+            prefetch_related_objects([user], "posts")
+
+        prefetch_one(User.objects.get(pk=user_1.pk))
+        prefetch_one(User.objects.get(pk=user_2.pk))
