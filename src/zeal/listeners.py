@@ -56,6 +56,9 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
         if any(char in entry["field"] for char in fnmatch_chars):
             continue
 
+        if entry["field"] == "get":
+            continue
+
         if entry["field"] not in ALL_APPS[entry["model"]]:
             raise ZealConfigError(
                 f"Field '{entry['field']}' not found on '{entry['model']}'"
