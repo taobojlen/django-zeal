@@ -50,7 +50,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
                 f"Model '{entry['model']}' not found in installed Django models"
             )
 
-        if not entry["field"]:
+        if "field" not in entry or not entry["field"]:
             continue
 
         if any(char in entry["field"] for char in fnmatch_chars):
