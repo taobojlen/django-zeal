@@ -10,6 +10,7 @@ from typing import Optional, TypedDict, Union
 
 from django.conf import settings
 from django.db import models
+from typing_extensions import NotRequired
 
 from zeal.util import get_caller, get_stack
 
@@ -33,7 +34,7 @@ CountsKey = Union[
 
 class AllowListEntry(TypedDict):
     model: str
-    field: Optional[str]
+    field: NotRequired[Optional[str]]
 
 
 def _validate_allowlist(allowlist: list[AllowListEntry]):
