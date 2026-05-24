@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.0](https://github.com/taobojlen/django-zeal/compare/v2.1.0...v2.2.0) (2026-05-24)
+
+
+### Features
+
+* detect N+1 on forward GenericForeignKey access ([#69](https://github.com/taobojlen/django-zeal/issues/69)) ([ffa6aa3](https://github.com/taobojlen/django-zeal/commit/ffa6aa3bf88e70a9304c062de55b240ef41f97c6))
+* detect N+1 on GenericRelation accessors ([#68](https://github.com/taobojlen/django-zeal/issues/68)) ([2c5fef8](https://github.com/taobojlen/django-zeal/commit/2c5fef889bd1b0ae9aa328a906c85c62e2f1a00c))
+* detect prefetch related objects ([#58](https://github.com/taobojlen/django-zeal/issues/58)) ([74fa981](https://github.com/taobojlen/django-zeal/commit/74fa9815bbfbb717a2b315715096d0d6c21f4d36))
+
 ## [2.1.0](https://github.com/taobojlen/django-zeal/compare/v2.0.5...v2.1.0) (2026-03-18)
 
 
