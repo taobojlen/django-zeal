@@ -388,7 +388,9 @@ def patch_many_to_many_descriptor():
 
 
 def patch_generic_related_manager():
-    from django.contrib.contenttypes.fields import create_generic_related_manager
+    from django.contrib.contenttypes.fields import (
+        create_generic_related_manager,
+    )
 
     def parser(context: QuerysetContext) -> QuerySource:
         assert (
