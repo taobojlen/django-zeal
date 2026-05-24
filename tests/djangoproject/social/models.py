@@ -41,6 +41,8 @@ class Post(models.Model):
 
 class Tag(models.Model):
     label = models.TextField()
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, null=True, blank=True
+    )
+    object_id = models.PositiveIntegerField(null=True, blank=True)
     obj = GenericForeignKey()

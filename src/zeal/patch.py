@@ -399,10 +399,17 @@ def patch_generic_foreign_key():
 
     original_get = GenericForeignKey.__get__
 
+    def _would_hit_db(gfk, instance) -> bool:
+        if gfk.is_cached(instance):
+            return False
+        # When ct_id is None, __get__ short-circuits without a query.
+        ct_attname = instance._meta.get_field(gfk.ct_field).get_attname()
+        return getattr(instance, ct_attname, None) is not None
+
     def patched_get(self, instance, cls=None):
         if instance is None:
             return original_get(self, instance, cls)
-        if not self.is_cached(instance):
+        if _would_hit_db(self, instance):
             n_plus_one_listener.notify(
                 instance.__class__,
                 self.name,

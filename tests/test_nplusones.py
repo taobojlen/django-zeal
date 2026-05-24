@@ -785,6 +785,19 @@ def test_zeal_ignore_works_for_generic_foreign_key():
             _ = tag.obj
 
 
+def test_no_false_positive_when_generic_foreign_key_is_null():
+    from djangoproject.social.models import Tag
+
+    Tag.objects.create(label="a")
+    Tag.objects.create(label="b")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        for tag in Tag.objects.all():
+            assert tag.obj is None
+        # Only the SELECT for Tag.objects.all(); no per-row GFK queries.
+        assert len(ctx.captured_queries) == 1
+
+
 def test_no_false_positive_when_accessing_generic_foreign_key_twice():
     from djangoproject.social.models import Tag
 
