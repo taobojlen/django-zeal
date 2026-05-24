@@ -1,6 +1,7 @@
 import functools
 import importlib
 import inspect
+from contextvars import ContextVar
 from typing import Any, Callable, Optional, TypedDict, Union
 
 from django.db import models
@@ -16,6 +17,24 @@ from django.db.models.query_utils import DeferredAttribute
 from zeal.util import is_single_query
 
 from .listeners import QuerySource, n_plus_one_listener
+
+# Set to True while inside Django's internal prefetch path
+# (QuerySet._prefetch_related_objects or the query module's
+# prefetch_related_objects function, which _iterator calls).
+# Used to suppress get_prefetch_queryset notifications for
+# proper .prefetch_related() usage on querysets. User calls
+# to django.db.models.prefetch_related_objects go through a
+# separate binding that is not patched.
+_in_queryset_prefetch: ContextVar[bool] = ContextVar(
+    "_in_queryset_prefetch", default=False
+)
+
+# Set to True while inside a patched get_prefetch_queryset call.
+# Suppresses _fetch_all notifications on querysets that
+# get_prefetch_queryset creates and evaluates internally.
+_in_prefetch_queryset: ContextVar[bool] = ContextVar(
+    "_in_prefetch_queryset", default=False
+)
 
 
 class QuerysetContext(TypedDict):
@@ -56,7 +75,11 @@ def patch_queryset_fetch_all(
     fetch_all = queryset._fetch_all
 
     def wrapper(*args, **kwargs):
-        if queryset._result_cache is None:
+        if (
+            queryset._result_cache is None
+            and not _in_prefetch_queryset.get()
+            and not getattr(queryset, "__zeal_skip_notify", False)
+        ):
             parsed = parser(context)
             n_plus_one_listener.notify(
                 parsed["model"],
@@ -116,6 +139,34 @@ def patch_queryset_function(
     return wrapper
 
 
+def _wrap_prefetch(target, notify_fn):
+    """Notify on per-instance prefetch_related_objects() calls.
+
+    Wraps get_prefetch_querysets (Django 5.0+) when present, else
+    the deprecated singular form. Only fires for single-instance
+    calls; bulk prefetches are correct usage.
+    """
+    attr_name = (
+        "get_prefetch_querysets"
+        if hasattr(target, "get_prefetch_querysets")
+        else "get_prefetch_queryset"
+    )
+    original = getattr(target, attr_name)
+
+    def patched(self, instances, *args, **kwargs):
+        if not _in_queryset_prefetch.get() and len(instances) == 1:
+            notify_fn(self, instances[0])
+        token = _in_prefetch_queryset.set(True)
+        try:
+            result = original(self, instances, *args, **kwargs)
+        finally:
+            _in_prefetch_queryset.reset(token)
+        result[0].__zeal_skip_notify = True  # type: ignore
+        return result
+
+    setattr(target, attr_name, patched)
+
+
 def patch_forward_many_to_one_descriptor():
     """
     This also handles ForwardOneToOneDescriptor, which is
@@ -141,6 +192,15 @@ def patch_forward_many_to_one_descriptor():
 
     ForwardManyToOneDescriptor.get_queryset = patch_queryset_function(
         ForwardManyToOneDescriptor.get_queryset, parser=parser
+    )
+
+    _wrap_prefetch(
+        ForwardManyToOneDescriptor,
+        lambda self, instance: n_plus_one_listener.notify(
+            self.field.model,
+            self.field.name,
+            instance_key=get_instance_key(instance),
+        ),
     )
 
 
@@ -195,6 +255,18 @@ def patch_reverse_many_to_one_descriptor():
             return wrapper
 
         manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
+
+        def notify_fn(self, instance):
+            rel = manager_call_args["rel"]
+            model, field_name = parse_related_parts(
+                rel.model, rel.related_name, rel.related_model
+            )
+            n_plus_one_listener.notify(
+                model, field_name, instance_key=get_instance_key(instance)
+            )
+
+        _wrap_prefetch(manager, notify_fn)
+
         return manager
 
     patch_module_function(
@@ -221,6 +293,15 @@ def patch_reverse_one_to_one_descriptor():
 
     ReverseOneToOneDescriptor.get_queryset = patch_queryset_function(
         ReverseOneToOneDescriptor.get_queryset, parser
+    )
+
+    _wrap_prefetch(
+        ReverseOneToOneDescriptor,
+        lambda self, instance: n_plus_one_listener.notify(
+            self.related.field.related_model,
+            self.related.field.remote_field.name,
+            instance_key=get_instance_key(instance),
+        ),
     )
 
 
@@ -276,6 +357,26 @@ def patch_many_to_many_descriptor():
             return wrapper
 
         manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
+
+        def notify_fn(self, instance):
+            rel = manager_call_args["rel"]
+            is_reverse = manager_call_args["reverse"]
+            if is_reverse:
+                field_name = rel.related_name
+                related_model = rel.related_model
+            else:
+                field_name = rel.field.name
+                related_model = rel.model
+            model = instance.__class__
+            model, field_name = parse_related_parts(
+                model, field_name, related_model
+            )
+            n_plus_one_listener.notify(
+                model, field_name, instance_key=get_instance_key(instance)
+            )
+
+        _wrap_prefetch(manager, notify_fn)
+
         return manager
 
     patch_module_function(
@@ -339,6 +440,32 @@ def patch_global_queryset():
         return wrapper
 
     QuerySet.get = patch_get(QuerySet.get)
+
+    original_prefetch_related_objects = QuerySet._prefetch_related_objects  # type: ignore
+
+    def patched_prefetch_related_objects(self):
+        token = _in_queryset_prefetch.set(True)
+        try:
+            return original_prefetch_related_objects(self)
+        finally:
+            _in_queryset_prefetch.reset(token)
+
+    QuerySet._prefetch_related_objects = (  # type: ignore
+        patched_prefetch_related_objects
+    )
+
+    from django.db.models import query as _query_module
+
+    original_module_prefetch = _query_module.prefetch_related_objects
+
+    def patched_module_prefetch(*args, **kwargs):
+        token = _in_queryset_prefetch.set(True)
+        try:
+            return original_module_prefetch(*args, **kwargs)
+        finally:
+            _in_queryset_prefetch.reset(token)
+
+    _query_module.prefetch_related_objects = patched_module_prefetch
 
 
 def patch():

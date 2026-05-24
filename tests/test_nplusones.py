@@ -2,6 +2,7 @@ import re
 
 import pytest
 from django.db import connection
+from django.db.models import prefetch_related_objects
 from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import Post, Profile, User
 from zeal import NPlusOneError, zeal_context
@@ -517,3 +518,96 @@ def test_ignores_calls_on_different_lines():
     # this should *not* raise an exception
     _a = list(user_1.posts.all())
     _b = list(user_2.posts.all())
+
+
+class TestPrefetchRelatedObjects:
+    """prefetch_related_objects called per-instance is N+1; bulk is not."""
+
+    def test_reverse_many_to_one_per_instance_is_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            PostFactory.create(author=u)
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.posts"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "posts")
+
+    def test_forward_many_to_one_per_instance_is_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            PostFactory.create(author=u)
+        posts = list(Post.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.Post.author"),
+        ):
+            for post in posts:
+                prefetch_related_objects([post], "author")
+
+    def test_reverse_one_to_one_per_instance_is_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            ProfileFactory.create(user=u)
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.profile"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "profile")
+
+    def test_forward_many_to_many_per_instance_is_n_plus_one(self):
+        user_1, user_2 = UserFactory.create_batch(2)
+        user_1.following.add(user_2)
+        user_2.following.add(user_1)
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.following"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "following")
+
+    def test_reverse_many_to_many_per_instance_is_n_plus_one(self):
+        user_1, user_2 = UserFactory.create_batch(2)
+        user_1.following.add(user_2)
+        user_2.following.add(user_1)
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.followers"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "followers")
+
+    def test_per_instance_in_iterator_loop_is_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            PostFactory.create(author=u)
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.posts"),
+        ):
+            for user in User.objects.iterator(chunk_size=1):
+                prefetch_related_objects([user], "posts")
+
+    def test_bulk_is_not_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            PostFactory.create(author=u)
+        users = list(User.objects.all())
+        prefetch_related_objects(users, "posts")
+
+    def test_singly_loaded_prefetch_is_not_n_plus_one(self):
+        user_1, user_2 = UserFactory.create_batch(2)
+        PostFactory.create(author=user_1)
+        PostFactory.create(author=user_2)
+
+        def prefetch_one(user):
+            prefetch_related_objects([user], "posts")
+
+        prefetch_one(User.objects.get(pk=user_1.pk))
+        prefetch_one(User.objects.get(pk=user_2.pk))
