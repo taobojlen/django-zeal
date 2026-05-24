@@ -685,3 +685,16 @@ def test_zeal_ignore_works_for_generic_relation():
     with zeal_ignore([{"model": "social.User", "field": "tags"}]):
         for user in User.objects.all():
             _ = list(user.tags.all())
+
+
+def test_no_false_positive_when_calling_generic_relation_twice():
+    from djangoproject.social.models import Tag
+
+    user = UserFactory.create()
+    Tag.objects.create(obj=user, label="a")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        queryset = user.tags.all()
+        list(queryset)  # evaluate queryset once
+        list(queryset)  # evaluate again (cached)
+        assert len(ctx.captured_queries) == 1
