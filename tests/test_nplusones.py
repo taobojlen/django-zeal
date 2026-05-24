@@ -611,3 +611,19 @@ class TestPrefetchRelatedObjects:
 
         prefetch_one(User.objects.get(pk=user_1.pk))
         prefetch_one(User.objects.get(pk=user_2.pk))
+
+
+def test_detects_nplusone_in_generic_relation():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.tags")
+    ):
+        for user in User.objects.all():
+            _ = list(user.tags.all())
+
+    for user in User.objects.prefetch_related("tags").all():
+        _ = list(user.tags.all())
