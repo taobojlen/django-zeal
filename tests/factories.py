@@ -33,6 +33,7 @@ class PostFactory(BaseFactory[Post]):
         model = Post
 
 
+# Pass obj=<instance> when calling; content_type and object_id are derived from it.
 class TagFactory(BaseFactory[Tag]):
     label = factory.Faker("word")
 
