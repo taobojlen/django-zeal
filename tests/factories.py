@@ -1,7 +1,7 @@
 from typing import Generic, TypeVar
 
 import factory
-from djangoproject.social.models import Post, Profile, User
+from djangoproject.social.models import Post, Profile, Tag, User
 
 T = TypeVar("T")
 
@@ -31,3 +31,10 @@ class PostFactory(BaseFactory[Post]):
 
     class Meta:  # type: ignore
         model = Post
+
+
+class TagFactory(BaseFactory[Tag]):
+    label = factory.Faker("word")
+
+    class Meta:  # type: ignore
+        model = Tag

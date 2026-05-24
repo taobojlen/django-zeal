@@ -1,3 +1,8 @@
+from django.contrib.contenttypes.fields import (
+    GenericForeignKey,
+    GenericRelation,
+)
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 
@@ -9,6 +14,8 @@ class User(models.Model):
     # note that there's no related_name set here, because we want to
     # test that case too.
     blocked = models.ManyToManyField("user")
+
+    tags = GenericRelation("Tag")
 
     followers: models.Manager["User"]
     user_set: models.Manager["User"]
@@ -30,3 +37,10 @@ class Post(models.Model):
         User, on_delete=models.CASCADE, related_name="posts"
     )
     text = models.TextField()
+
+
+class Tag(models.Model):
+    label = models.TextField()
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    obj = GenericForeignKey()
