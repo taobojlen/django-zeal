@@ -415,6 +415,7 @@ def patch_generic_related_manager():
 
         def patch_init_method(func):
             @functools.wraps(func)
+            # instance=None mirrors GenericRelatedObjectManager.__init__'s signature
             def wrapper(self, instance=None):
                 self.get_queryset = patch_queryset_function(
                     self.get_queryset,
