@@ -643,3 +643,33 @@ def test_detects_nplusone_in_generic_relation_iterator():
 
     for user in User.objects.prefetch_related("tags").iterator(chunk_size=2):
         _ = list(user.tags.all())
+
+
+def test_no_false_positive_when_loading_single_object_generic_relation():
+    from djangoproject.social.models import Tag
+
+    user_1, user_2 = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk).first()
+        user_2 = User.objects.filter(pk=user_2.pk).first()
+        assert user_1 is not None and user_2 is not None
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk)[0]
+        user_2 = User.objects.filter(pk=user_2.pk)[0]
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.get(pk=user_1.pk)
+        user_2 = User.objects.get(pk=user_2.pk)
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
