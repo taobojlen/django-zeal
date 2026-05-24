@@ -41,8 +41,10 @@ class QuerysetContext(TypedDict):
     args: Optional[Any]
     kwargs: Optional[Any]
 
-    # This is only used for many-to-many relations. It contains the call args
-    # when `create_forward_many_to_many_manager` is called.
+    # Used by managers built via factory functions like
+    # create_forward_many_to_many_manager, create_reverse_many_to_one_manager,
+    # and create_generic_related_manager. Contains the call args captured at
+    # factory invocation time.
     manager_call_args: Optional[dict[str, Any]]
 
     # used by ReverseManyToOne. a django model instance.

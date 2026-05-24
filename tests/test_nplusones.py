@@ -627,3 +627,19 @@ def test_detects_nplusone_in_generic_relation():
 
     for user in User.objects.prefetch_related("tags").all():
         _ = list(user.tags.all())
+
+
+def test_detects_nplusone_in_generic_relation_iterator():
+    from djangoproject.social.models import Tag
+
+    for _ in range(4):
+        user = UserFactory.create()
+        Tag.objects.create(obj=user, label="x")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.tags")
+    ):
+        for user in User.objects.all().iterator(chunk_size=2):
+            _ = list(user.tags.all())
+
+    for user in User.objects.prefetch_related("tags").iterator(chunk_size=2):
+        _ = list(user.tags.all())
