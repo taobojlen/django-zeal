@@ -521,12 +521,7 @@ def test_ignores_calls_on_different_lines():
 
 
 class TestPrefetchRelatedObjects:
-    """prefetch_related_objects called per-instance is N+1; bulk is not.
-
-    One per-instance test per wrap site (forward-M2O descriptor,
-    reverse-M2O manager, reverse-O2O descriptor, M2M manager), one
-    bulk smoke test, and one singly-loaded suppression test.
-    """
+    """prefetch_related_objects called per-instance is N+1; bulk is not."""
 
     def test_reverse_many_to_one_per_instance_is_n_plus_one(self):
         users = UserFactory.create_batch(2)
@@ -575,6 +570,29 @@ class TestPrefetchRelatedObjects:
         ):
             for user in users:
                 prefetch_related_objects([user], "following")
+
+    def test_reverse_many_to_many_per_instance_is_n_plus_one(self):
+        user_1, user_2 = UserFactory.create_batch(2)
+        user_1.following.add(user_2)
+        user_2.following.add(user_1)
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.followers"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "followers")
+
+    def test_per_instance_in_iterator_loop_is_n_plus_one(self):
+        users = UserFactory.create_batch(2)
+        for u in users:
+            PostFactory.create(author=u)
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.posts"),
+        ):
+            for user in User.objects.iterator(chunk_size=1):
+                prefetch_related_objects([user], "posts")
 
     def test_bulk_is_not_n_plus_one(self):
         users = UserFactory.create_batch(2)

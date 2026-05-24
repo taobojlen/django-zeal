@@ -19,9 +19,12 @@ from zeal.util import is_single_query
 from .listeners import QuerySource, n_plus_one_listener
 
 # Set to True while inside Django's internal prefetch path
-# (QuerySet._prefetch_related_objects or QuerySet._iterator).
+# (QuerySet._prefetch_related_objects or the query module's
+# prefetch_related_objects function, which _iterator calls).
 # Used to suppress get_prefetch_queryset notifications for
-# proper .prefetch_related() usage on querysets.
+# proper .prefetch_related() usage on querysets. User calls
+# to django.db.models.prefetch_related_objects go through a
+# separate binding that is not patched.
 _in_queryset_prefetch: ContextVar[bool] = ContextVar(
     "_in_queryset_prefetch", default=False
 )
@@ -451,16 +454,18 @@ def patch_global_queryset():
         patched_prefetch_related_objects
     )
 
-    original_iterator = QuerySet._iterator  # type: ignore
+    from django.db.models import query as _query_module
 
-    def patched_iterator(self, *args, **kwargs):
+    original_module_prefetch = _query_module.prefetch_related_objects
+
+    def patched_module_prefetch(*args, **kwargs):
         token = _in_queryset_prefetch.set(True)
         try:
-            yield from original_iterator(self, *args, **kwargs)
+            return original_module_prefetch(*args, **kwargs)
         finally:
             _in_queryset_prefetch.reset(token)
 
-    QuerySet._iterator = patched_iterator  # type: ignore
+    _query_module.prefetch_related_objects = patched_module_prefetch
 
 
 def patch():
