@@ -583,6 +583,20 @@ class TestPrefetchRelatedObjects:
             for user in users:
                 prefetch_related_objects([user], "followers")
 
+    def test_generic_relation_per_instance_is_n_plus_one(self):
+        from djangoproject.social.models import Tag
+
+        users = UserFactory.create_batch(2)
+        for u in users:
+            Tag.objects.create(obj=u, label="x")
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.tags"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "tags")
+
     def test_per_instance_in_iterator_loop_is_n_plus_one(self):
         users = UserFactory.create_batch(2)
         for u in users:
@@ -611,3 +625,90 @@ class TestPrefetchRelatedObjects:
 
         prefetch_one(User.objects.get(pk=user_1.pk))
         prefetch_one(User.objects.get(pk=user_2.pk))
+
+
+def test_detects_nplusone_in_generic_relation():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.tags")
+    ):
+        for user in User.objects.all():
+            _ = list(user.tags.all())
+
+    for user in User.objects.prefetch_related("tags").all():
+        _ = list(user.tags.all())
+
+
+def test_detects_nplusone_in_generic_relation_iterator():
+    from djangoproject.social.models import Tag
+
+    for _ in range(4):
+        user = UserFactory.create()
+        Tag.objects.create(obj=user, label="x")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.User.tags")
+    ):
+        for user in User.objects.all().iterator(chunk_size=2):
+            _ = list(user.tags.all())
+
+    for user in User.objects.prefetch_related("tags").iterator(chunk_size=2):
+        _ = list(user.tags.all())
+
+
+def test_no_false_positive_when_loading_single_object_generic_relation():
+    from djangoproject.social.models import Tag
+
+    user_1, user_2 = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk).first()
+        user_2 = User.objects.filter(pk=user_2.pk).first()
+        assert user_1 is not None and user_2 is not None
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.filter(pk=user_1.pk)[0]
+        user_2 = User.objects.filter(pk=user_2.pk)[0]
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        user_1 = User.objects.get(pk=user_1.pk)
+        user_2 = User.objects.get(pk=user_2.pk)
+        _ = list(user_1.tags.all())
+        _ = list(user_2.tags.all())
+        assert len(ctx.captured_queries) == 4
+
+
+def test_zeal_ignore_works_for_generic_relation():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_ignore([{"model": "social.User", "field": "tags"}]):
+        for user in User.objects.all():
+            _ = list(user.tags.all())
+
+
+def test_no_false_positive_when_calling_generic_relation_twice():
+    from djangoproject.social.models import Tag
+
+    user = UserFactory.create()
+    Tag.objects.create(obj=user, label="a")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        queryset = user.tags.all()
+        list(queryset)  # evaluate queryset once
+        list(queryset)  # evaluate again (cached)
+        assert len(ctx.captured_queries) == 1

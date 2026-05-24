@@ -41,8 +41,10 @@ class QuerysetContext(TypedDict):
     args: Optional[Any]
     kwargs: Optional[Any]
 
-    # This is only used for many-to-many relations. It contains the call args
-    # when `create_forward_many_to_many_manager` is called.
+    # Used by managers built via factory functions like
+    # create_forward_many_to_many_manager, create_reverse_many_to_one_manager,
+    # and create_generic_related_manager. Contains the call args captured at
+    # factory invocation time.
     manager_call_args: Optional[dict[str, Any]]
 
     # used by ReverseManyToOne. a django model instance.
@@ -385,6 +387,69 @@ def patch_many_to_many_descriptor():
     )
 
 
+def patch_generic_related_manager():
+    from django.contrib.contenttypes.fields import (
+        create_generic_related_manager,
+    )
+
+    def parser(context: QuerysetContext) -> QuerySource:
+        assert (
+            "manager_call_args" in context
+            and context["manager_call_args"] is not None
+            and "rel" in context["manager_call_args"]
+        )
+        assert "instance" in context and context["instance"] is not None
+        rel = context["manager_call_args"]["rel"]
+        instance = context["instance"]
+        return {
+            "model": instance.__class__,
+            "field": rel.field.name,
+            "instance_key": get_instance_key(instance),
+        }
+
+    def patched_create_generic_related_manager(*args, **kwargs):
+        manager_call_args = inspect.getcallargs(
+            create_generic_related_manager, *args, **kwargs
+        )
+        manager = create_generic_related_manager(*args, **kwargs)
+
+        def patch_init_method(func):
+            @functools.wraps(func)
+            # instance=None mirrors GenericRelatedObjectManager.__init__'s signature
+            def wrapper(self, instance=None):
+                self.get_queryset = patch_queryset_function(
+                    self.get_queryset,
+                    parser,
+                    context={
+                        "args": None,
+                        "kwargs": None,
+                        "manager_call_args": manager_call_args,
+                        "instance": instance,
+                    },
+                )
+                return func(self, instance)
+
+            return wrapper
+
+        manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
+
+        def notify_fn(self, instance):
+            n_plus_one_listener.notify(
+                instance.__class__,
+                manager_call_args["rel"].field.name,
+                instance_key=get_instance_key(instance),
+            )
+
+        _wrap_prefetch(manager, notify_fn)
+
+        return manager
+
+    patch_module_function(
+        create_generic_related_manager,
+        patched_create_generic_related_manager,
+    )
+
+
 def patch_deferred_attribute():
     def patched_check_parent_chain(func):
         @functools.wraps(func)
@@ -473,5 +538,6 @@ def patch():
     patch_reverse_many_to_one_descriptor()
     patch_reverse_one_to_one_descriptor()
     patch_many_to_many_descriptor()
+    patch_generic_related_manager()
     patch_deferred_attribute()
     patch_global_queryset()
