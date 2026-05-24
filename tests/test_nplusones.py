@@ -673,3 +673,15 @@ def test_no_false_positive_when_loading_single_object_generic_relation():
         _ = list(user_1.tags.all())
         _ = list(user_2.tags.all())
         assert len(ctx.captured_queries) == 4
+
+
+def test_zeal_ignore_works_for_generic_relation():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_ignore([{"model": "social.User", "field": "tags"}]):
+        for user in User.objects.all():
+            _ = list(user.tags.all())
