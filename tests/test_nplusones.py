@@ -712,3 +712,94 @@ def test_no_false_positive_when_calling_generic_relation_twice():
         list(queryset)  # evaluate queryset once
         list(queryset)  # evaluate again (cached)
         assert len(ctx.captured_queries) == 1
+
+
+def test_detects_nplusone_in_generic_foreign_key():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.Tag.obj")
+    ):
+        for tag in Tag.objects.all():
+            _ = tag.obj
+
+    for tag in Tag.objects.prefetch_related("obj").all():
+        _ = tag.obj
+
+
+def test_detects_nplusone_in_generic_foreign_key_iterator():
+    from djangoproject.social.models import Tag
+
+    for _ in range(4):
+        user = UserFactory.create()
+        Tag.objects.create(obj=user, label="x")
+    with pytest.raises(
+        NPlusOneError, match=re.escape("N+1 detected on social.Tag.obj")
+    ):
+        for tag in Tag.objects.all().iterator(chunk_size=2):
+            _ = tag.obj
+
+    for tag in Tag.objects.prefetch_related("obj").iterator(chunk_size=2):
+        _ = tag.obj
+
+
+def test_no_false_positive_when_loading_single_object_generic_foreign_key():
+    from djangoproject.social.models import Tag
+
+    user_1, user_2 = UserFactory.create_batch(2)
+    tag_1 = Tag.objects.create(obj=user_1, label="a")
+    tag_2 = Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_context():
+        tag_1 = Tag.objects.filter(pk=tag_1.pk).first()
+        tag_2 = Tag.objects.filter(pk=tag_2.pk).first()
+        assert tag_1 is not None and tag_2 is not None
+        _ = tag_1.obj
+        _ = tag_2.obj
+
+    with zeal_context():
+        tag_1 = Tag.objects.filter(pk=tag_1.pk)[0]
+        tag_2 = Tag.objects.filter(pk=tag_2.pk)[0]
+        _ = tag_1.obj
+        _ = tag_2.obj
+
+    with zeal_context():
+        tag_1 = Tag.objects.get(pk=tag_1.pk)
+        tag_2 = Tag.objects.get(pk=tag_2.pk)
+        _ = tag_1.obj
+        _ = tag_2.obj
+
+
+def test_zeal_ignore_works_for_generic_foreign_key():
+    from djangoproject.social.models import Tag
+
+    [user_1, user_2] = UserFactory.create_batch(2)
+    Tag.objects.create(obj=user_1, label="a")
+    Tag.objects.create(obj=user_2, label="b")
+
+    with zeal_ignore([{"model": "social.Tag", "field": "obj"}]):
+        for tag in Tag.objects.all():
+            _ = tag.obj
+
+
+def test_no_false_positive_when_accessing_generic_foreign_key_twice():
+    from djangoproject.social.models import Tag
+
+    user = UserFactory.create()
+    Tag.objects.create(obj=user, label="a")
+
+    with zeal_context(), CaptureQueriesContext(connection) as ctx:
+        [tag] = list(Tag.objects.all())
+        _ = tag.obj  # first access hits DB
+        _ = tag.obj  # second access uses descriptor cache
+        # 1 query for the tag itself, 1 for the User via GFK,
+        # plus ContentType lookups (cached after first).
+        gfk_queries = [
+            q
+            for q in ctx.captured_queries
+            if '"social_user"' in q["sql"]
+        ]
+        assert len(gfk_queries) == 1

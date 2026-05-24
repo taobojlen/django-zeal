@@ -36,6 +36,13 @@ _in_prefetch_queryset: ContextVar[bool] = ContextVar(
     "_in_prefetch_queryset", default=False
 )
 
+# Set to True while resolving a GenericForeignKey via __get__.
+# Suppresses the QuerySet.get notification fired by the
+# internal ContentType.get_object_for_this_type() call,
+# so the N+1 is reported on the parent model's GFK field
+# instead of on the resolved model's .get().
+_in_gfk_get: ContextVar[bool] = ContextVar("_in_gfk_get", default=False)
+
 
 class QuerysetContext(TypedDict):
     args: Optional[Any]
@@ -387,6 +394,29 @@ def patch_many_to_many_descriptor():
     )
 
 
+def patch_generic_foreign_key():
+    from django.contrib.contenttypes.fields import GenericForeignKey
+
+    original_get = GenericForeignKey.__get__
+
+    def patched_get(self, instance, cls=None):
+        if instance is None:
+            return original_get(self, instance, cls)
+        if not self.is_cached(instance):
+            n_plus_one_listener.notify(
+                instance.__class__,
+                self.name,
+                instance_key=get_instance_key(instance),
+            )
+        token = _in_gfk_get.set(True)
+        try:
+            return original_get(self, instance, cls)
+        finally:
+            _in_gfk_get.reset(token)
+
+    GenericForeignKey.__get__ = patched_get  # type: ignore
+
+
 def patch_generic_related_manager():
     from django.contrib.contenttypes.fields import (
         create_generic_related_manager,
@@ -495,8 +525,13 @@ def patch_global_queryset():
         def wrapper(*args, **kwargs):
             qs = args[0]
             # Detect N+1 on standalone .get() calls (e.g. in a loop).
-            # Skip if the queryset is already tracked via a relation descriptor.
-            if not getattr(qs, "__zeal_patched", False):
+            # Skip if the queryset is already tracked via a relation descriptor,
+            # or if we're resolving a GenericForeignKey (its own patch reports
+            # the N+1 on the parent model's GFK field instead).
+            if (
+                not getattr(qs, "__zeal_patched", False)
+                and not _in_gfk_get.get()
+            ):
                 n_plus_one_listener.notify(qs.model, "get", instance_key=None)
             ret = func(*args, **kwargs)
             n_plus_one_listener.ignore(get_instance_key(ret))
@@ -538,6 +573,7 @@ def patch():
     patch_reverse_many_to_one_descriptor()
     patch_reverse_one_to_one_descriptor()
     patch_many_to_many_descriptor()
+    patch_generic_foreign_key()
     patch_generic_related_manager()
     patch_deferred_attribute()
     patch_global_queryset()
