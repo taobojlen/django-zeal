@@ -163,3 +163,6 @@ cython_debug/
 
 .ruff_cache/
 .codspeed/
+
+# Brainstorming specs and implementation plans (local scratch only)
+docs/superpowers/
