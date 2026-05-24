@@ -432,6 +432,16 @@ def patch_generic_related_manager():
             return wrapper
 
         manager.__init__ = patch_init_method(manager.__init__)  # type: ignore
+
+        def notify_fn(self, instance):
+            n_plus_one_listener.notify(
+                instance.__class__,
+                manager_call_args["rel"].field.name,
+                instance_key=get_instance_key(instance),
+            )
+
+        _wrap_prefetch(manager, notify_fn)
+
         return manager
 
     patch_module_function(

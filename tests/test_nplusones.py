@@ -583,6 +583,20 @@ class TestPrefetchRelatedObjects:
             for user in users:
                 prefetch_related_objects([user], "followers")
 
+    def test_generic_relation_per_instance_is_n_plus_one(self):
+        from djangoproject.social.models import Tag
+
+        users = UserFactory.create_batch(2)
+        for u in users:
+            Tag.objects.create(obj=u, label="x")
+        users = list(User.objects.all())
+        with pytest.raises(
+            NPlusOneError,
+            match=re.escape("N+1 detected on social.User.tags"),
+        ):
+            for user in users:
+                prefetch_related_objects([user], "tags")
+
     def test_per_instance_in_iterator_loop_is_n_plus_one(self):
         users = UserFactory.create_batch(2)
         for u in users:
