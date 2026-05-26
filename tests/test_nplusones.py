@@ -497,7 +497,7 @@ def test_works_in_web_requests(client):
 def test_detects_nplusone_on_get():
     users = UserFactory.create_batch(2)
     with pytest.raises(
-        NPlusOneError, match=re.escape("N+1 detected on social.User.get")
+        NPlusOneError, match=re.escape("N+1 detected on social.User.get()")
     ):
         for user in users:
             _ = User.objects.get(pk=user.pk)
@@ -811,8 +811,6 @@ def test_no_false_positive_when_accessing_generic_foreign_key_twice():
         # 1 query for the tag itself, 1 for the User via GFK,
         # plus ContentType lookups (cached after first).
         gfk_queries = [
-            q
-            for q in ctx.captured_queries
-            if '"social_user"' in q["sql"]
+            q for q in ctx.captured_queries if '"social_user"' in q["sql"]
         ]
         assert len(gfk_queries) == 1
