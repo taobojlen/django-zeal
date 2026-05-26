@@ -10,3 +10,4 @@ twine
 pytest-random-order
 pytest-mock
 pytest-codspeed
+typing-extensions

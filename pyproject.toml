@@ -5,9 +5,6 @@ description = "Detect N+1s in your Django app"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
-dependencies = [
-    "typing_extensions>=4.0; python_version < '3.11'",
-]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
