@@ -539,7 +539,11 @@ def patch_global_queryset():
                 not getattr(qs, "__zeal_patched", False)
                 and not _in_gfk_get.get()
             ):
-                n_plus_one_listener.notify(qs.model, "get", instance_key=None)
+                n_plus_one_listener.notify(
+                    qs.model,
+                    "get()",
+                    instance_key=None,
+                )
             ret = func(*args, **kwargs)
             n_plus_one_listener.ignore(get_instance_key(ret))
             return ret
