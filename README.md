@@ -233,7 +233,6 @@ zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but ha
 
 ## Contributing
 
-1. First, install [uv](https://github.com/astral-sh/uv).
-2. Create a virtual env using `uv venv` and activate it with `source .venv/bin/activate`.
-3. Run `make install` to install dev dependencies.
-4. To run tests, run `make test`.
+1. First, install [mise](https://mise.jdx.dev/) — it will automatically install uv and Python for you.
+2. Run `mise run install` to create a virtual env and install dev dependencies.
+3. To run tests, run `mise run test`. Pass extra pytest args with `mise run test -- -x -k test_foo`.

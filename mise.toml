@@ -1,3 +1,58 @@
 [tools]
 pinact = "3.10.1"
 zizmor = "1.25.2"
+python = "3.9.19"
+uv = "0.11.16"
+
+[tasks.install-hooks]
+description = "Configure git hooks path"
+run = "git config core.hooksPath hooks/"
+
+[tasks.install]
+description = "Install dependencies and configure git hooks"
+depends = ["install-hooks"]
+run = "uv sync"
+
+[tasks.test]
+description = "Run tests"
+usage = 'arg "[args]" var=#true double_dash="automatic" help="Additional pytest arguments"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+eval "set -- ${usage_args:-}"
+uv run pytest -s --tb=native --random-order -m "not benchmark" "$@"
+'''
+
+[tasks.benchmark]
+description = "Run benchmarks"
+usage = 'arg "[args]" var=#true double_dash="automatic" help="Additional pytest arguments"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+eval "set -- ${usage_args:-}"
+uv run pytest -s "$@" --codspeed
+'''
+
+[tasks.format-check]
+description = "Check formatting and linting"
+run = "uv run ruff format --check && uv run ruff check"
+
+[tasks.format]
+description = "Format code and fix lint issues"
+run = "uv run ruff format && uv run ruff check --fix"
+
+[tasks.typecheck]
+description = "Run type checker"
+run = "uv run pyright ."
+
+[tasks.build]
+description = "Build package"
+run = "uv run python -m build --installer uv"
+
+[tasks.publish]
+description = "Publish package to PyPI"
+confirm = "Publish to PyPI?"
+run = "uv run twine upload dist/*"
+
+[settings]
+task_timings = true
