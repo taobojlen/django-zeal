@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.1](https://github.com/taobojlen/django-zeal/compare/v2.2.0...v2.2.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* allow missing field "field" in configuration ([#61](https://github.com/taobojlen/django-zeal/issues/61)) ([5ea75dd](https://github.com/taobojlen/django-zeal/commit/5ea75dd870ccfb30f937be5d8eeba0d0db115ad0))
+* rename "get"-&gt;"get()" and allow it in allowed fields ([#62](https://github.com/taobojlen/django-zeal/issues/62)) ([e208920](https://github.com/taobojlen/django-zeal/commit/e208920793b1c81787de4fd5050eeeb2f25821d1))
+
 ## [2.2.0](https://github.com/taobojlen/django-zeal/compare/v2.1.0...v2.2.0) (2026-05-24)
 
 
