@@ -41,10 +41,13 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - run: make ci
-      - run: pip install Django~=${{ matrix.django-version }}
-      - run: make test
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv pip install "Django~=${{ matrix.django-version }}"
+      - run: uv run pytest -s --tb=native --random-order -m "not benchmark"
 
   test-django-prerelease:
     runs-on: ubuntu-latest
@@ -63,10 +66,13 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - run: make ci
-      - run: pip install --pre django
-      - run: make test
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv pip install --pre django
+      - run: uv run pytest -s --tb=native --random-order -m "not benchmark"
 
   typecheck:
     runs-on: ubuntu-latest
@@ -79,6 +85,9 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: 3.12
-          cache: 'pip'
-      - run: make ci
-      - run: make typecheck
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pyright .

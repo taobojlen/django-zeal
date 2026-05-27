@@ -25,10 +25,13 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: 3.12
-          cache: "pip"
-      - run: make ci
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
       - name: Run benchmarks
         uses: CodSpeedHQ/action@76578c2a7ddd928664caa737f0e962e3085d4e7c # v3.8.1
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          run: pytest tests/ --codspeed
+          run: uv run pytest tests/ --codspeed

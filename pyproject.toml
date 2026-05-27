@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "django-zeal"
 version = "2.2.0"
@@ -5,6 +9,22 @@ description = "Detect N+1s in your Django app"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
+
+[dependency-groups]
+dev = [
+    "pytest~=8.2.2",
+    "pytest-django~=4.8.0",
+    "factory-boy==3.3.0",
+    "ruff~=0.5.0",
+    "django-stubs~=5.0",
+    "pyright",
+    "build",
+    "twine",
+    "pytest-random-order",
+    "pytest-mock",
+    "pytest-codspeed",
+    "typing-extensions",
+]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -30,7 +50,7 @@ extend-select = [
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["auto", ".venv", ".worktrees"]
+exclude = ["auto", "**/.venv*/**", ".worktrees"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "djangoproject.settings"
