@@ -287,6 +287,13 @@ def test_allows_fnmatch_in_global_allowlist(settings):
         pass
 
 
+@pytest.mark.nozeal
+def test_allows_global_allowlist_without_field_name(settings):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.User"}]
+    with zeal_context():
+        pass
+
+
 def test_validates_local_allowlist_model_name():
     with pytest.raises(
         ZealConfigError,
@@ -307,6 +314,11 @@ def test_validates_local_allowlist_field_name():
 
 def test_allows_fnmatch_in_local_allowlist():
     with zeal_ignore([{"model": "social.U[sb]er", "field": "p?st"}]):
+        pass
+
+
+def test_allows_local_allowlist_without_field_name():
+    with zeal_ignore([{"model": "social.User"}]):
         pass
 
 

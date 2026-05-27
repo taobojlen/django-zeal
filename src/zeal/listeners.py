@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Optional, TypedDict, Union
 
 from django.conf import settings
 from django.db import models
@@ -16,6 +16,10 @@ from zeal.util import get_caller, get_stack
 from .constants import ALL_APPS
 from .errors import NPlusOneError, ZealConfigError, ZealError
 from .signals import nplusone_detected
+
+if TYPE_CHECKING:
+    # available in typing module in Python 3.11+
+    from typing_extensions import NotRequired
 
 
 class QuerySource(TypedDict):
@@ -33,7 +37,7 @@ CountsKey = Union[
 
 class AllowListEntry(TypedDict):
     model: str
-    field: Optional[str]
+    field: "NotRequired[Optional[str]]"
 
 
 def _validate_allowlist(allowlist: list[AllowListEntry]):
@@ -50,7 +54,7 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
                 f"Model '{entry['model']}' not found in installed Django models"
             )
 
-        if not entry["field"]:
+        if "field" not in entry or not entry["field"]:
             continue
 
         if any(char in entry["field"] for char in fnmatch_chars):
