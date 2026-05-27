@@ -9,12 +9,13 @@ Catch N+1 queries in your Django project.
 
 ## Features
 
-- Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`
+- Detects N+1s from missing prefetches and from use of `.defer()`/`.only()`/`.get()`
 - Friendly error messages like `N+1 detected on social.User.followers at myapp/views.py:25 in get_user`
 - Configurable thresholds
 - Allow-list
 - Well-tested
 - No dependencies
+- Fast; adds very little overhead to your test suite
 
 ## Acknowledgements
 
@@ -26,7 +27,8 @@ It's not a fork, but a lot of the central concepts and initial code came from np
 First:
 
 ```
-pip install django-zeal
+uv add django-zeal       # if using uv
+pip install django-zeal  # if using pip
 ```
 
 Then, add zeal to your `INSTALLED_APPS` and `MIDDLEWARE`.
@@ -42,7 +44,7 @@ read on!
 
 > [!WARNING]
 > You probably don't want to run zeal in production:
-> there is some overhead to detecting N+1s. Benchmarks show ~3-5% overhead
+> there is a slight overhead to detecting N+1s. Benchmarks show ~3-5% overhead
 > on a typical workload.
 
 ### Celery
@@ -230,9 +232,3 @@ zeal borrows heavily from [nplusone](https://github.com/jmcarp/nplusone), but ha
 - nplusone appears to be abandoned at this point.
 - however, zeal only works with Django, whereas nplusone can also be used with SQLAlchemy.
 - zeal does not (yet) detect unused prefetches, but nplusone does.
-
-## Contributing
-
-1. First, install [mise](https://mise.jdx.dev/) — it will automatically install uv and Python for you.
-2. Run `mise run install` to create a virtual env and install dev dependencies.
-3. To run tests, run `mise run test`. Pass extra pytest args with `mise run test -- -x -k test_foo`.
