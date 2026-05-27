@@ -286,10 +286,15 @@ def test_allows_fnmatch_in_global_allowlist(settings):
     with zeal_context():
         pass
 
-
 @pytest.mark.nozeal
 def test_allows_get_in_global_allowlist(settings):
     settings.ZEAL_ALLOWLIST = [{"model": "social.User", "field": "get()"}]
+    with zeal_context():
+        pass
+
+@pytest.mark.nozeal
+def test_allows_global_allowlist_without_field_name(settings):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.User"}]
     with zeal_context():
         pass
 
@@ -327,6 +332,11 @@ def test_get_allowlist_suppresses_nplusone_on_get():
     with zeal_ignore([{"model": "social.User", "field": "get()"}]):
         for user in users:
             _ = User.objects.get(pk=user.pk)
+
+
+def test_allows_local_allowlist_without_field_name():
+    with zeal_ignore([{"model": "social.User"}]):
+        pass
 
 
 def test_validates_related_name_field_names():
