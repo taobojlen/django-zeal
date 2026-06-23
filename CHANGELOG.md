@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.2](https://github.com/taobojlen/django-zeal/compare/v2.2.1...v2.2.2) (2026-06-23)
+
+
+### Documentation
+
+* add AGENTS.md ([#74](https://github.com/taobojlen/django-zeal/issues/74)) ([388a779](https://github.com/taobojlen/django-zeal/commit/388a779f51ac154f660c8a721b10cfc4ec9880ec))
+
 ## [2.2.1](https://github.com/taobojlen/django-zeal/compare/v2.2.0...v2.2.1) (2026-05-27)
 
 
