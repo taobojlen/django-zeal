@@ -13,6 +13,8 @@ the issue is caused by merely having zeal in INSTALLED_APPS.
 import pickle
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import User
 
 from .factories import PostFactory, UserFactory
@@ -66,7 +68,8 @@ def test_prefetched_instance_pickles_with_cache():
     """
     The cacheops scenario: a model instance carrying a prefetched queryset in
     ``_prefetched_objects_cache`` is pickled as part of a larger object graph.
-    This must not crash.
+    This must not crash, and the prefetched data must actually survive the
+    round-trip (not be silently reloaded from the database on access).
     """
     user = UserFactory.create()
     PostFactory.create(author=user)
@@ -76,10 +79,19 @@ def test_prefetched_instance_pickles_with_cache():
     # Force the prefetch cache population by accessing the relation.
     posts = list(loaded.posts.all())
     assert len(posts) == 2
+    expected_pks = {p.pk for p in posts}
 
     restored = pickle.loads(pickle.dumps(loaded))
-    # prefetched data survives the round-trip
-    assert {p.pk for p in restored.posts.all()} == {p.pk for p in posts}
+
+    # The prefetch cache must survive serialization. Asserting on the cache
+    # directly (and that accessing the restored relation issues zero queries)
+    # guards against a regression where the data happens to match only because
+    # ``.all()`` reloaded the same rows from the database.
+    assert "posts" in restored._prefetched_objects_cache
+    with CaptureQueriesContext(connection) as captured:
+        result = list(restored.posts.all())
+    assert len(captured.captured_queries) == 0
+    assert {p.pk for p in result} == expected_pks
 
 
 @pytest.mark.nozeal
