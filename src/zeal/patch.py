@@ -565,6 +565,35 @@ def patch_global_queryset():
         patched_prefetch_related_objects
     )
 
+    # zeal attaches per-queryset closures to ``_clone``/``_fetch_all`` (and
+    # marks querysets with ``__zeal_patched``/``__zeal_skip_notify``) as
+    # *instance* attributes. Local closures have no importable qualname, so
+    # pickle -- which walks ``__dict__`` -- crashes on any queryset that went
+    # through a patched relation/prefetch path. This breaks libraries that
+    # pickle query results (e.g. django-cacheops), even outside an active
+    # zeal context, because the attributes are attached at creation time.
+    #
+    # The zeal attributes are safely reconstructible: an unpickled queryset
+    # falls back to the (still-patched) class-level methods, and accessing a
+    # relation re-patches fresh querysets via the descriptor patches. So we
+    # simply strip them from the pickled state.
+    # https://github.com/taobojlen/django-zeal/issues/76
+    original_getstate = QuerySet.__getstate__
+    _zeal_pickle_keys = (
+        "_clone",
+        "_fetch_all",
+        "__zeal_patched",
+        "__zeal_skip_notify",
+    )
+
+    def patched_getstate(self):
+        state = original_getstate(self)
+        for key in _zeal_pickle_keys:
+            state.pop(key, None)
+        return state
+
+    QuerySet.__getstate__ = patched_getstate  # type: ignore
+
     from django.db.models import query as _query_module
 
     original_module_prefetch = _query_module.prefetch_related_objects
