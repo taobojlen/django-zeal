@@ -395,9 +395,18 @@ def patch_many_to_many_descriptor():
 
 
 def patch_generic_foreign_key():
+    from django.contrib.contenttypes import fields as contenttypes_fields
     from django.contrib.contenttypes.fields import GenericForeignKey
 
-    original_get = GenericForeignKey.__get__
+    # Django 6.1 moved GenericForeignKey.__get__ onto a separate, private
+    # GenericForeignKeyDescriptor class that's set on the model in
+    # GenericForeignKey.contribute_to_class. On older versions,
+    # GenericForeignKey acts as its own descriptor.
+    descriptor_cls = getattr(
+        contenttypes_fields, "GenericForeignKeyDescriptor", None
+    )
+    target = descriptor_cls or GenericForeignKey
+    original_get = target.__get__
 
     def _would_hit_db(gfk, instance) -> bool:
         if gfk.is_cached(instance):
@@ -409,10 +418,11 @@ def patch_generic_foreign_key():
     def patched_get(self, instance, cls=None):
         if instance is None:
             return original_get(self, instance, cls)
-        if _would_hit_db(self, instance):
+        gfk = self.field if descriptor_cls else self
+        if _would_hit_db(gfk, instance):
             n_plus_one_listener.notify(
                 instance.__class__,
-                self.name,
+                gfk.name,
                 instance_key=get_instance_key(instance),
             )
         token = _in_gfk_get.set(True)
@@ -421,7 +431,7 @@ def patch_generic_foreign_key():
         finally:
             _in_gfk_get.reset(token)
 
-    GenericForeignKey.__get__ = patched_get  # type: ignore
+    target.__get__ = patched_get  # type: ignore
 
 
 def patch_generic_related_manager():
