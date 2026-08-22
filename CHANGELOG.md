@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3](https://github.com/taobojlen/django-zeal/compare/v2.2.2...v2.2.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* support Django 6.1's GenericForeignKeyDescriptor split ([#80](https://github.com/taobojlen/django-zeal/issues/80)) ([d3a3a47](https://github.com/taobojlen/django-zeal/commit/d3a3a47da7bef01967b9e1c160b651122cf3ca11))
+
 ## [2.2.2](https://github.com/taobojlen/django-zeal/compare/v2.2.1...v2.2.2) (2026-07-24)
 
 
