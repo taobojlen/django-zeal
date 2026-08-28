@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.4](https://github.com/taobojlen/django-zeal/compare/v2.2.3...v2.2.4) (2026-08-28)
+
+
+### Bug Fixes
+
+* suppress signals for allowlisted N+1s ([#82](https://github.com/taobojlen/django-zeal/issues/82)) ([eeeb886](https://github.com/taobojlen/django-zeal/commit/eeeb886ed83c82490327e09ad0bca242bec24e1c))
+
 ## [2.2.3](https://github.com/taobojlen/django-zeal/compare/v2.2.2...v2.2.3) (2026-08-22)
 
 
