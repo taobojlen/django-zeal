@@ -34,3 +34,16 @@ def test_signal_send_message(
     exception = patched_signal.call_args[1]["exception"]
     assert isinstance(exception, errors.NPlusOneError)
     assert "N+1 detected on social.Post.author" in str(exception)
+
+
+def test_allowlisted_nplusone_does_not_send_signal(
+    mocker: pytest_mock.MockerFixture,
+    settings: pytest_django.fixtures.SettingsWrapper,
+):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.User", "field": "get()"}]
+    patched_signal = mocker.patch("zeal.listeners.nplusone_detected.send")
+
+    for _ in range(5):
+        n_plus_one_listener.notify(models.User, "get()", None)
+
+    patched_signal.assert_not_called()

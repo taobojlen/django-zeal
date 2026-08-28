@@ -119,7 +119,7 @@ class Listener(ABC):
         field: str,
         message: str,
         calls: list,
-    ):
+    ) -> bool:
         should_error = (
             settings.ZEAL_RAISE if hasattr(settings, "ZEAL_RAISE") else True
         )
@@ -140,7 +140,7 @@ class Listener(ABC):
 
         if is_allowlisted:
             _nplusone_context.get()._allowlisted_keys.add((model, field))
-            return
+            return False
 
         if should_include_all_callers:
             # calls contains lists of (filename, lineno, funcname) tuples
@@ -178,6 +178,7 @@ class Listener(ABC):
                 filename=caller_filename,
                 lineno=caller_lineno,
             )
+        return True
 
 
 class NPlusOneListener(Listener):
@@ -247,12 +248,14 @@ class NPlusOneListener(Listener):
         field: str,
         message: str,
         calls: list,
-    ):
-        super()._alert(model, field, message, calls)
-        nplusone_detected.send(
-            sender=self,
-            exception=self.error_class(message),
-        )
+    ) -> bool:
+        alerted = super()._alert(model, field, message, calls)
+        if alerted:
+            nplusone_detected.send(
+                sender=self,
+                exception=self.error_class(message),
+            )
+        return alerted
 
 
 n_plus_one_listener = NPlusOneListener()
