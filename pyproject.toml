@@ -24,6 +24,7 @@ dev = [
     "pytest-mock",
     "pytest-codspeed",
     "typing-extensions",
+    "hypothesis>=6.100",
 ]
 
 [tool.setuptools]
@@ -50,7 +51,7 @@ extend-select = [
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["auto", "discovery", "**/.venv*/**", ".worktrees"]
+exclude = ["auto", "**/.venv*/**", ".worktrees"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "djangoproject.settings"

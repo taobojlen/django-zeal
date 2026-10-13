@@ -1,7 +1,6 @@
-"""Opt-in generated investigations; run separately from regression tests."""
+"""Model-based properties for detection contexts and Django queryset state."""
 
 import asyncio
-import os
 import pickle
 import warnings
 from collections import Counter
@@ -14,17 +13,10 @@ from django.db.models import prefetch_related_objects
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import Post, User
-from hypothesis import event, given, settings
+from hypothesis import event, given
 from hypothesis import strategies as st
 from zeal import zeal_context, zeal_ignore
 from zeal.listeners import n_plus_one_listener
-
-settings.register_profile(
-    "discovery",
-    max_examples=int(os.environ.get("ZEAL_PROPERTY_EXAMPLES", "300")),
-    deadline=None,
-)
-settings.load_profile("discovery")
 
 
 def notify(field, instance, caller):
@@ -188,11 +180,14 @@ def test_deferred_refresh_preserves_loading_origin(count, single, show_all):
             qs = Post.objects.filter(pk__in=[p.pk for p in posts]).defer(
                 "text"
             )
-            loaded = (
-                [qs.filter(pk=p.pk).first() for p in posts]
-                if single
-                else list(qs)
-            )
+            if single:
+                loaded = []
+                for post in posts:
+                    selected = qs.filter(pk=post.pk).first()
+                    assert selected is not None
+                    loaded.append(selected)
+            else:
+                loaded = list(qs)
             assert [post.text for post in loaded] == [
                 str(i) for i in range(count)
             ]
