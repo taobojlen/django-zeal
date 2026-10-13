@@ -299,7 +299,10 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
     old_context = _nplusone_context.get()
     new_context = NPlusOneContext(
         enabled=old_context.enabled,
-        calls=old_context.calls.copy(),
+        calls=defaultdict(
+            list,
+            {key: calls.copy() for key, calls in old_context.calls.items()},
+        ),
         ignored=old_context.ignored.copy(),
         allowlist=[*old_context.allowlist, *allowlist],
     )

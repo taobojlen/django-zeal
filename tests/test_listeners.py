@@ -355,3 +355,19 @@ def test_validates_related_name_field_names():
 def test_handles_zeal_ignore_when_disabled():
     with zeal_ignore([{"model": "social.User", "field": "post"}]):
         pass
+
+
+@pytest.mark.parametrize("show_all", [False, True])
+def test_ignore_scope_does_not_change_parent_counts(settings, show_all):
+    settings.ZEAL_NPLUSONE_THRESHOLD = 3
+    settings.ZEAL_SHOW_ALL_CALLERS = show_all
+
+    def access():
+        n_plus_one_listener.notify(User, "posts", None)
+
+    access()
+    with zeal_ignore():
+        access()
+    access()
+    with pytest.raises(NPlusOneError, match="social.User.posts"):
+        access()
