@@ -505,7 +505,9 @@ def patch_deferred_attribute():
             result = func(self, instance, *args, **kwargs)
             if result is None:
                 n_plus_one_listener.notify(
-                    instance.__class__, self.field.name, str(instance.pk)
+                    instance.__class__,
+                    self.field.name,
+                    get_instance_key(instance),
                 )
             return result
 

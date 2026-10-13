@@ -964,3 +964,29 @@ def test_no_false_positive_when_accessing_generic_foreign_key_twice():
             q for q in ctx.captured_queries if '"social_user"' in q["sql"]
         ]
         assert len(gfk_queries) == 1
+
+
+@pytest.mark.parametrize("load", ["first", "get", "slice"])
+def test_singly_loaded_deferred_fields_do_not_raise(settings, load):
+    settings.ZEAL_ALLOWLIST = [{"model": "social.User", "field": "get()"}]
+    users = UserFactory.create_batch(2)
+    qs = User.objects.only("pk")
+    if load == "first":
+        loaded = [
+            qs.filter(pk=users[0].pk).first(),
+            qs.filter(pk=users[1].pk).first(),
+        ]
+    elif load == "get":
+        loaded = [
+            qs.get(pk=users[0].pk),
+            qs.get(pk=users[1].pk),
+        ]
+    else:
+        loaded = [qs.filter(pk=users[0].pk)[0], qs.filter(pk=users[1].pk)[0]]
+    with CaptureQueriesContext(connection) as captured:
+        names = []
+        for user in loaded:
+            assert user is not None
+            names.append(user.username)
+    assert names == [user.username for user in users]
+    assert len(captured) == 2
