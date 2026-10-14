@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class QuerySource(TypedDict):
     model: type[models.Model]
     field: str
-    instance_key: Optional[str]  # e.g. `User:123`
+    instance_key: Optional[str]  # e.g. `social.User:123`
 
 
 # tuple of (model, field, caller) or (model, field, filename, lineno)

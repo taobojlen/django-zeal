@@ -3,6 +3,7 @@ import warnings
 
 import django
 import pytest
+from django.contrib.auth.models import User as AuthUser
 from django.db import connection
 from django.db.models import Model, QuerySet, prefetch_related_objects
 from django.test.utils import CaptureQueriesContext
@@ -990,3 +991,17 @@ def test_singly_loaded_deferred_fields_do_not_raise(settings, load):
             names.append(user.username)
     assert names == [user.username for user in users]
     assert len(captured) == 2
+
+
+@pytest.mark.parametrize("field", ["username", "posts"])
+def test_single_load_exemptions_do_not_cross_app_boundaries(field):
+    users = UserFactory.create_batch(2)
+    AuthUser.objects.create(pk=users[1].pk, username="auth-user")
+    assert AuthUser.objects.filter(pk=users[1].pk).first() is not None
+
+    with pytest.raises(NPlusOneError, match=f"social.User.{field}"):
+        for user in User.objects.only("pk").order_by("pk"):
+            if field == "username":
+                _ = user.username
+            else:
+                _ = list(user.posts.all())
