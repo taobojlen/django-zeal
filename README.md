@@ -182,6 +182,19 @@ with zeal_ignore([{"model": "polls.Question", "field": "options"}]):
     # code in this block will ignore N+1s on Question.options
 ```
 
+To detect unnecessary `zeal_ignore()` blocks, enable this opt-in check in your
+Django settings:
+
+```python
+ZEAL_CHECK_UNUSED_IGNORES = True
+```
+
+This makes unnecessary `zeal_ignore`s (that suppress no N+1s) raise
+`zeal.UnusedIgnoreError`. With `ZEAL_RAISE = False`,
+it emits a warning instead.
+
+This can be useful for tidying up your codebase by removing redundant `zeal_ignore` blocks.
+
 If you want to listen to N+1 exceptions globally and do something with them, you can listen to the Django signal that zeal emits:
 
 ```python

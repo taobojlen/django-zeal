@@ -14,7 +14,12 @@ from django.db import models
 from zeal.util import get_caller, get_stack
 
 from .constants import ALL_APPS
-from .errors import NPlusOneError, ZealConfigError, ZealError
+from .errors import (
+    NPlusOneError,
+    UnusedIgnoreError,
+    ZealConfigError,
+    ZealError,
+)
 from .signals import nplusone_detected
 
 if TYPE_CHECKING:
@@ -70,6 +75,15 @@ def _validate_allowlist(allowlist: list[AllowListEntry]):
 
 
 @dataclass
+class IgnoreScope:
+    # Index range in NPlusOneContext.allowlist owned by this scope.
+    start: int
+    stop: int
+    detection_enabled: bool = False
+    used: bool = False
+
+
+@dataclass
 class NPlusOneContext:
     enabled: bool = False
     calls: dict[CountsKey, list] = field(
@@ -77,6 +91,7 @@ class NPlusOneContext:
     )
     ignored: set[str] = field(default_factory=set)
     allowlist: list[AllowListEntry] = field(default_factory=list)
+    ignore_scopes: list[IgnoreScope] = field(default_factory=list)
     # Cache for keys that have already been checked and found allowlisted,
     # so we can skip the expensive _alert() path on subsequent accesses.
     _allowlisted_keys: set[tuple[type[models.Model], str]] = field(
@@ -129,13 +144,22 @@ class Listener(ABC):
             else False
         )
         is_allowlisted = False
-        for entry in self._allowlist:
+        allowlist = self._allowlist
+        context = _nplusone_context.get()
+        for index, entry in enumerate(allowlist):
             model_match = fnmatch(
                 f"{model._meta.app_label}.{model.__name__}", entry["model"]
             )
             field_match = fnmatch(field, entry.get("field") or "*")
             if model_match and field_match:
                 is_allowlisted = True
+                # The first matching entry owns the suppression. Global and
+                # enclosing ignores take precedence over redundant inner ones.
+                local_index = index - (len(allowlist) - len(context.allowlist))
+                for scope in context.ignore_scopes:
+                    if scope.start <= local_index < scope.stop:
+                        scope.used = True
+                        break
                 break
 
         if is_allowlisted:
@@ -267,8 +291,14 @@ def setup() -> Optional[Token]:
     context = _nplusone_context.get()
     if hasattr(settings, "ZEAL_ALLOWLIST"):
         _validate_allowlist(settings.ZEAL_ALLOWLIST)
+    for scope in context.ignore_scopes:
+        scope.detection_enabled = True
     return _nplusone_context.set(
-        NPlusOneContext(enabled=True, allowlist=context.allowlist)
+        NPlusOneContext(
+            enabled=True,
+            allowlist=context.allowlist,
+            ignore_scopes=context.ignore_scopes,
+        )
     )
 
 
@@ -296,7 +326,16 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
     elif old_context.enabled:
         _validate_allowlist(allowlist)
 
-    old_context = _nplusone_context.get()
+    check_unused = getattr(settings, "ZEAL_CHECK_UNUSED_IGNORES", False)
+    scope = (
+        IgnoreScope(
+            start=len(old_context.allowlist),
+            stop=len(old_context.allowlist) + len(allowlist),
+            detection_enabled=old_context.enabled,
+        )
+        if check_unused
+        else None
+    )
     new_context = NPlusOneContext(
         enabled=old_context.enabled,
         calls=defaultdict(
@@ -305,9 +344,19 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
         ),
         ignored=old_context.ignored.copy(),
         allowlist=[*old_context.allowlist, *allowlist],
+        ignore_scopes=[
+            *old_context.ignore_scopes,
+            *([scope] if scope is not None else []),
+        ],
     )
     token = _nplusone_context.set(new_context)
     try:
         yield
     finally:
         _nplusone_context.reset(token)
+
+    if scope is not None and scope.detection_enabled and not scope.used:
+        message = "zeal_ignore() did not suppress any N+1 queries"
+        if getattr(settings, "ZEAL_RAISE", True):
+            raise UnusedIgnoreError(message)
+        warnings.warn(message, UserWarning, stacklevel=3)
