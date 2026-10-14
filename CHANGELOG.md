@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0](https://github.com/taobojlen/django-zeal/compare/v2.2.4...v2.3.0) (2026-10-14)
+
+
+### Features
+
+* add opt-in checks for unused zeal_ignore blocks ([#87](https://github.com/taobojlen/django-zeal/issues/87)) ([da16e34](https://github.com/taobojlen/django-zeal/commit/da16e3408e72ebebdb09341c2a81f7460c181223))
+
+
+### Bug Fixes
+
+* correct N+1 alerts for ignored queries and deferred fields ([#84](https://github.com/taobojlen/django-zeal/issues/84)) ([5b01448](https://github.com/taobojlen/django-zeal/commit/5b01448b5a97c85faa296c6297da4d4e3e5352ef))
+* correct N+1 detection after loading deferred fields ([#85](https://github.com/taobojlen/django-zeal/issues/85)) ([9b0b0dd](https://github.com/taobojlen/django-zeal/commit/9b0b0dd9dc9dfa9c7818809b54f05d5315dc6376))
+
 ## [2.2.4](https://github.com/taobojlen/django-zeal/compare/v2.2.3...v2.2.4) (2026-08-28)
 
 
