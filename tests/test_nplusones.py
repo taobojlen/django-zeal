@@ -1,8 +1,10 @@
 import re
+import warnings
 
+import django
 import pytest
 from django.db import connection
-from django.db.models import prefetch_related_objects
+from django.db.models import Model, QuerySet, prefetch_related_objects
 from django.test.utils import CaptureQueriesContext
 from djangoproject.social.models import Post, Profile, User
 from zeal import NPlusOneError, zeal_context
@@ -410,6 +412,154 @@ def test_detects_nplusone_due_to_deferred_fields():
         Post.objects.all().select_related("author").only("author__username")
     ):
         _ = post.author.username
+
+
+@pytest.mark.parametrize("clone", [False, True])
+@pytest.mark.parametrize("load", ["bulk", "get", "first", "slice"])
+def test_deferred_refresh_preserves_detection(
+    settings, monkeypatch, clone, load
+):
+    settings.ZEAL_RAISE = False
+    settings.ZEAL_ALLOWLIST = [{"model": "social.Post", "field": "text"}]
+    authors = [UserFactory.create(username=f"author-{i}") for i in range(2)]
+    created = [
+        PostFactory.create(author=author, text=f"text-{i}")
+        for i, author in enumerate(authors)
+    ]
+
+    class RefreshQuerySet(QuerySet):
+        def get(self, *args, **kwargs):
+            if clone:
+                self = self.order_by("pk").all()
+            return super().get(*args, **kwargs)
+
+    manager = RefreshQuerySet.as_manager()
+    manager.model = Post
+    monkeypatch.setattr(Post._meta, "base_manager", manager)
+
+    with zeal_context(), warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        qs = Post.objects.defer("text").order_by("pk")
+        if load == "bulk":
+            posts = list(qs)
+        elif load == "get":
+            first = qs.get(pk=created[0].pk)
+            second = qs.get(pk=created[1].pk)
+            posts = [first, second]
+        elif load == "first":
+            posts = [qs.filter(pk=post.pk).first() for post in created]
+        else:
+            posts = [qs.filter(pk=post.pk)[0] for post in created]
+        assert all(post is not None for post in posts)
+        with CaptureQueriesContext(connection) as queries:
+            assert [post.text for post in posts if post is not None] == [
+                "text-0",
+                "text-1",
+            ]
+        assert len(queries) == 2
+        assert not caught
+        with CaptureQueriesContext(connection) as queries:
+            assert [
+                post.author.username for post in posts if post is not None
+            ] == ["author-0", "author-1"]
+        assert len(queries) == 2
+        assert len(caught) == (1 if load == "bulk" else 0)
+        if caught:
+            assert "social.Post.author" in str(caught[0].message)
+
+
+@pytest.mark.parametrize("when", ["before", "after"])
+@pytest.mark.parametrize("same_model", [False, True])
+def test_deferred_refresh_override_get_is_detected(
+    settings, monkeypatch, when, same_model
+):
+    settings.ZEAL_RAISE = False
+    settings.ZEAL_ALLOWLIST = [{"model": "social.Post", "field": "text"}]
+    for i in range(2):
+        author = UserFactory.create(username=f"author-{i}")
+        PostFactory.create(author=author, text=f"text-{i}")
+
+    def unrelated_get(post):
+        if same_model:
+            return Post.objects.get(pk=post.pk)
+        return User.objects.get(pk=post.author_id)
+
+    def refresh(self, *args, **kwargs):
+        if when == "before":
+            unrelated_get(self)
+        Model.refresh_from_db(self, *args, **kwargs)
+        if when == "after":
+            unrelated_get(self)
+
+    monkeypatch.setattr(Post, "refresh_from_db", refresh)
+    with zeal_context(), warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        posts = list(Post.objects.defer("text").order_by("pk"))
+        assert [post.text for post in posts] == ["text-0", "text-1"]
+    assert len(caught) == 1
+    model = "Post" if same_model else "User"
+    assert f"social.{model}.get()" in str(caught[0].message)
+
+
+@pytest.mark.parametrize("copy_hints", [False, True])
+@pytest.mark.parametrize("access", ["deferred", "explicit", "from_queryset"])
+def test_refresh_clones_preserve_unrelated_get_detection(
+    settings, monkeypatch, copy_hints, access
+):
+    if access == "from_queryset" and django.VERSION < (5, 1):
+        pytest.skip("refresh_from_db(from_queryset=...) requires Django 5.1")
+    settings.ZEAL_RAISE = False
+    settings.ZEAL_ALLOWLIST = [{"model": "social.Post", "field": "text"}]
+    created = [
+        PostFactory.create(
+            author=UserFactory.create(username=f"author-{i}"),
+            text=f"text-{i}",
+        )
+        for i in range(3)
+    ]
+
+    class RefreshQuerySet(QuerySet):
+        def get(self, *args, **kwargs):
+            hints = self._hints if copy_hints else {}  # type: ignore
+            unrelated = Post.objects.db_manager(hints=hints).get(
+                pk=created[2].pk
+            )
+            assert unrelated.text == "text-2"
+            self = self.order_by("pk").all()
+            return super().get(*args, **kwargs)
+
+    manager = RefreshQuerySet.as_manager()
+    manager.model = Post
+    monkeypatch.setattr(Post._meta, "base_manager", manager)
+
+    with zeal_context(), warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        qs = Post.objects.filter(pk__in=[post.pk for post in created[:2]])
+        if access == "deferred":
+            qs = qs.defer("text")
+        posts = list(qs.order_by("pk"))
+        with CaptureQueriesContext(connection) as queries:
+            if access == "explicit":
+                for post in posts:
+                    post.refresh_from_db(fields=["text"])
+            elif access == "from_queryset":
+                for post in posts:
+                    post.refresh_from_db(
+                        fields=["text"],
+                        from_queryset=RefreshQuerySet(model=Post),
+                    )
+            assert [post.text for post in posts] == ["text-0", "text-1"]
+        assert len(queries) == 4
+        assert len(caught) == 1
+        assert "social.Post.get()" in str(caught[0].message)
+        with CaptureQueriesContext(connection) as queries:
+            assert [post.author.username for post in posts] == [
+                "author-0",
+                "author-1",
+            ]
+        assert len(queries) == 2
+        assert len(caught) == 2
+        assert "social.Post.author" in str(caught[1].message)
 
 
 def test_detects_nplusone_due_to_deferred_fields_in_iterator():
