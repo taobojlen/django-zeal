@@ -16,27 +16,36 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        django-version: ["4.2", "5.0", "6.0", "6.1"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        django-version: ["4.2", "5.0", "5.2", "6.0", "6.1"]
         exclude:
+          # Django 4.2 and 5.0 support Python <=3.12.
+          - python-version: "3.13"
+            django-version: "4.2"
+          - python-version: "3.14"
+            django-version: "4.2"
+          - python-version: "3.13"
+            django-version: "5.0"
+          - python-version: "3.14"
+            django-version: "5.0"
           # django 5 requires python >=3.10
-          - python-version: 3.9
-            django-version: 5.0
-          - python-version: 3.9
-            django-version: 5.1
+          - python-version: "3.9"
+            django-version: "5.0"
+          - python-version: "3.9"
+            django-version: "5.2"
           # django 6 requires python >=3.12
-          - python-version: 3.9
-            django-version: 6.0
-          - python-version: 3.10
-            django-version: 6.0
-          - python-version: 3.11
-            django-version: 6.0
-          - python-version: 3.9
-            django-version: 6.1
-          - python-version: 3.10
-            django-version: 6.1
-          - python-version: 3.11
-            django-version: 6.1
+          - python-version: "3.9"
+            django-version: "6.0"
+          - python-version: "3.10"
+            django-version: "6.0"
+          - python-version: "3.11"
+            django-version: "6.0"
+          - python-version: "3.9"
+            django-version: "6.1"
+          - python-version: "3.10"
+            django-version: "6.1"
+          - python-version: "3.11"
+            django-version: "6.1"
     name: Test (Python ${{ matrix.python-version }}, Django ${{ matrix.django-version }})
 
     steps:
@@ -52,8 +61,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv pip install "Django~=${{ matrix.django-version }}"
-      - run: uv run pytest -s --tb=native --random-order -m "not benchmark"
+      - run: uv pip install "Django==${{ matrix.django-version }}.*"
+      - run: uv run --no-sync pytest -s --tb=native --random-order -m "not benchmark"
 
   test-django-prerelease:
     runs-on: ubuntu-latest
@@ -61,7 +70,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12", "3.13", "3.14"]
     name: Test Django prerelease (Python ${{ matrix.python-version }})
 
     steps:
@@ -77,8 +86,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv pip install --pre django
-      - run: uv run pytest -s --tb=native --random-order -m "not benchmark"
+      - run: uv pip install --upgrade --pre django
+      - run: uv run --no-sync pytest -s --tb=native --random-order -m "not benchmark"
 
   typecheck:
     runs-on: ubuntu-latest
