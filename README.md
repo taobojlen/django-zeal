@@ -183,25 +183,17 @@ with zeal_ignore([{"model": "polls.Question", "field": "options"}]):
 ```
 
 To detect unnecessary `zeal_ignore()` blocks, enable this opt-in check in your
-Django settings (disabled by default):
+Django settings:
 
 ```python
 ZEAL_CHECK_UNUSED_IGNORES = True
 ```
 
-On normal exit, a block that suppressed no N+1 queries raises
-`zeal.UnusedIgnoreError` (a `ZealError` subclass). With `ZEAL_RAISE = False`,
-it emits a warning instead. The check applies to the block as a whole, not
-each allowlist entry. Queries below `ZEAL_NPLUSONE_THRESHOLD`, prefetched
-relations, and singly-loaded instances do not count as suppressed N+1s.
-Global and enclosing ignores take precedence, so a redundant inner ignore
-is reported as unused. The check also applies when detection starts inside
-the block, for example in a nested `zeal_context()`. Checks are skipped if
-detection remains disabled throughout the block or an exception leaves it.
+This makes unnecessary `zeal_ignore`s (that suppress no N+1s) raise
+`zeal.UnusedIgnoreError`. With `ZEAL_RAISE = False`,
+it emits a warning instead.
 
-Use this setting in tests where the ignored N+1 is expected to occur. A block
-can be unused for one input but necessary for another. Querysets must be
-evaluated inside the block for their queries to count.
+This can be useful for tidying up your codebase by removing redundant `zeal_ignore` blocks.
 
 If you want to listen to N+1 exceptions globally and do something with them, you can listen to the Django signal that zeal emits:
 
