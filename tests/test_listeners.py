@@ -3,9 +3,13 @@ import warnings
 
 import pytest
 from djangoproject.social.models import Post, User
-from zeal import NPlusOneError, zeal_context, zeal_ignore
+from zeal import NPlusOneError, UnusedIgnoreError, zeal_context, zeal_ignore
 from zeal.errors import ZealConfigError
-from zeal.listeners import _nplusone_context, n_plus_one_listener
+from zeal.listeners import (
+    AllowListEntry,
+    _nplusone_context,
+    n_plus_one_listener,
+)
 
 from .factories import PostFactory, UserFactory
 
@@ -25,7 +29,7 @@ def test_can_log_errors(settings, caplog):
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
         assert re.search(
-            r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:24 in test_can_log_errors",
+            r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:28 in test_can_log_errors",
             str(w[0].message),
         )
 
@@ -45,9 +49,9 @@ def test_can_log_all_traces(settings):
         expected_lines = [
             "N+1 detected on social.User.posts with calls:",
             "CALL 1:",
-            "tests/test_listeners.py:42 in test_can_log_all_traces",
+            "tests/test_listeners.py:46 in test_can_log_all_traces",
             "CALL 2:",
-            "tests/test_listeners.py:42 in test_can_log_all_traces",
+            "tests/test_listeners.py:46 in test_can_log_all_traces",
         ]
         for line in expected_lines:
             assert line in str(w[0].message)
@@ -59,7 +63,7 @@ def test_errors_include_caller():
     PostFactory.create(author=user_2)
     with pytest.raises(
         NPlusOneError,
-        match=r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:65 in test_errors_include_caller",
+        match=r"N\+1 detected on social\.User\.posts at .*\/test_listeners\.py:69 in test_errors_include_caller",
     ):
         for user in User.objects.all():
             _ = list(user.posts.all())
@@ -371,3 +375,142 @@ def test_ignore_scope_does_not_change_parent_counts(settings, show_all):
     access()
     with pytest.raises(NPlusOneError, match="social.User.posts"):
         access()
+
+
+def test_warns_about_unused_ignore_when_enabled(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    settings.ZEAL_RAISE = False
+    with pytest.warns(UserWarning, match="zeal_ignore.*did not suppress") as w:
+        with zeal_ignore():
+            pass
+    assert len(w) == 1
+    assert w[0].filename == __file__
+
+
+@pytest.mark.parametrize("check_unused", [False, True])
+def test_unused_ignore_is_opt_in(settings, check_unused):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = check_unused
+    if check_unused:
+        with pytest.raises(UnusedIgnoreError, match="did not suppress"):
+            with zeal_ignore():
+                pass
+    else:
+        with zeal_ignore():
+            pass
+
+
+@pytest.mark.parametrize("accesses", [0, 1, 2, 3])
+@pytest.mark.parametrize("show_all", [False, True])
+def test_unused_ignore_respects_threshold(settings, accesses, show_all):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    settings.ZEAL_NPLUSONE_THRESHOLD = 3
+    settings.ZEAL_SHOW_ALL_CALLERS = show_all
+    UserFactory.create_batch(3)
+    users = list(User.objects.all())
+
+    def run():
+        with zeal_ignore([{"model": "social.U*", "field": "post*"}]):
+            for user in users[:accesses]:
+                list(user.posts.all())
+
+    if accesses < 3:
+        with pytest.raises(UnusedIgnoreError):
+            run()
+    else:
+        run()
+
+
+@pytest.mark.parametrize("prefetch", [False, True])
+def test_unused_ignore_with_optimized_queries(settings, prefetch):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    UserFactory.create_batch(2)
+    with pytest.raises(UnusedIgnoreError):
+        with zeal_ignore():
+            if prefetch:
+                users = User.objects.prefetch_related("posts")
+            else:
+                users = [User.objects.first(), User.objects.last()]
+            for user in users:
+                assert user is not None
+                list(user.posts.all())
+
+
+@pytest.mark.parametrize("global_field", ["posts", "following"])
+def test_unused_ignore_accounts_for_global_allowlist(settings, global_field):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    entry: AllowListEntry = {"model": "social.User", "field": global_field}
+    settings.ZEAL_ALLOWLIST = [entry]
+    UserFactory.create_batch(2)
+
+    def run():
+        # Reusing a global entry must not attribute its suppression locally.
+        with zeal_ignore([entry, {"model": "social.User", "field": "posts"}]):
+            for user in User.objects.all():
+                list(user.posts.all())
+
+    if global_field == "posts":
+        with pytest.raises(UnusedIgnoreError):
+            run()
+    else:
+        run()
+
+
+def test_redundant_inner_ignore_is_unused(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    UserFactory.create_batch(2)
+    allowlist: list[AllowListEntry] = [{"model": "social.User"}]
+    with zeal_ignore(allowlist):
+        with pytest.raises(UnusedIgnoreError):
+            with zeal_ignore(allowlist):
+                for user in User.objects.all():
+                    list(user.posts.all())
+
+
+def test_inner_ignore_does_not_mark_unrelated_outer_ignore_used(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    UserFactory.create_batch(2)
+    with pytest.raises(UnusedIgnoreError):
+        with zeal_ignore([{"model": "social.Post"}]):
+            with zeal_ignore([{"model": "social.User"}]):
+                for user in User.objects.all():
+                    list(user.posts.all())
+
+
+def test_ignore_usage_survives_nested_detection_context(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    UserFactory.create_batch(2)
+    with zeal_ignore(), zeal_context():
+        for user in User.objects.all():
+            list(user.posts.all())
+
+    with pytest.raises(UnusedIgnoreError):
+        with zeal_ignore():
+            pass
+
+    # An unused-ignore error must still restore detection outside the block.
+    with pytest.raises(NPlusOneError):
+        for user in User.objects.all():
+            list(user.posts.all())
+
+
+def test_unused_ignore_does_not_mask_exceptions(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    with pytest.raises(ValueError, match="original error"):
+        with zeal_ignore():
+            raise ValueError("original error")
+
+    with pytest.raises(NPlusOneError):
+        with zeal_ignore([{"model": "social.Post"}]):
+            UserFactory.create_batch(2)
+            for user in User.objects.all():
+                list(user.posts.all())
+
+
+@pytest.mark.nozeal
+def test_unused_ignore_is_not_checked_when_detection_is_disabled(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with zeal_ignore():
+            pass
+    assert not caught
