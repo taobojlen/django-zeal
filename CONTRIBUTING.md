@@ -9,6 +9,10 @@ discuss the proposed changes before submitting a pull request.
 2. Run `mise run install` to create a virtual env and install dev dependencies.
 3. To run tests, run `mise run test`. Pass extra pytest args with `mise run test -- -x -k test_foo`.
 
+Property tests run in the normal suite with up to 300 examples per test.
+For longer runs, use `mise run test -- --hypothesis-profile=stress` (1,500 examples).
+To inspect generated coverage, add `--hypothesis-show-statistics`.
+
 ## Claude Code
 
 This repo ships an [`AGENTS.md`](AGENTS.md) with guidance for AI agents. Claude Code doesn't read `AGENTS.md` natively — to load it, use [claude-agents-md-loader](https://tangled.org/btao.org/claude-agents-md-loader).

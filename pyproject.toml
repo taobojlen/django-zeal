@@ -24,6 +24,7 @@ dev = [
     "pytest-mock",
     "pytest-codspeed",
     "typing-extensions",
+    "hypothesis>=6.100",
 ]
 
 [tool.setuptools]

@@ -66,7 +66,7 @@ def get_instance_key(
     instance: Union[models.Model, dict[str, Any]],
 ) -> Optional[str]:
     if isinstance(instance, models.Model):
-        return f"{instance.__class__.__name__}:{instance.pk}"
+        return f"{instance._meta.label}:{instance.pk}"
     else:
         # when calling a queryset with `.values(...).get()`, the instance
         # we get here may be a dict. we don't handle that case formally,
@@ -505,7 +505,9 @@ def patch_deferred_attribute():
             result = func(self, instance, *args, **kwargs)
             if result is None:
                 n_plus_one_listener.notify(
-                    instance.__class__, self.field.name, str(instance.pk)
+                    instance.__class__,
+                    self.field.name,
+                    get_instance_key(instance),
                 )
             return result
 
