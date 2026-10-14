@@ -17,7 +17,7 @@ from django.db.models.query_utils import DeferredAttribute
 
 from zeal.util import is_single_query
 
-from .listeners import QuerySource, n_plus_one_listener
+from .listeners import QuerySource, _nplusone_context, n_plus_one_listener
 
 # Set to True while inside Django's internal prefetch path
 # (QuerySet._prefetch_related_objects or the query module's
@@ -538,29 +538,61 @@ def patch_global_queryset():
 
     QuerySet._fetch_all = patch_fetch_all(QuerySet._fetch_all)
 
-    refresh_from_db_code = models.Model.refresh_from_db.__code__
+    original_refresh_from_db = models.Model.refresh_from_db
+    refresh_from_db_code = original_refresh_from_db.__code__
+    refresh_clones: ContextVar[Optional[list[tuple[QuerySet, QuerySet]]]] = (
+        ContextVar("refresh_clones", default=None)
+    )
+
+    @functools.wraps(original_refresh_from_db)
+    def patched_refresh_from_db(self, *args, **kwargs):
+        if not _nplusone_context.get().enabled:
+            return original_refresh_from_db(self, *args, **kwargs)
+        token = refresh_clones.set([])
+        try:
+            return original_refresh_from_db(self, *args, **kwargs)
+        finally:
+            refresh_clones.reset(token)
+
+    models.Model.refresh_from_db = patched_refresh_from_db
+
+    original_clone = QuerySet._clone  # type: ignore
+
+    @functools.wraps(original_clone)
+    def patched_clone(self):
+        clone = original_clone(self)
+        clones = refresh_clones.get()
+        if clones is not None:
+            clones.append((clone, self))
+        return clone
+
+    QuerySet._clone = patched_clone  # type: ignore
 
     def patch_get(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             qs = args[0]
             # A refresh reloads an existing instance, not a singly-loaded
-            # object. Django's instance hint survives custom queryset clones.
-            # Only match Django's implementation so unrelated queries in
-            # refresh_from_db overrides retain normal get() detection.
-            frame = sys._getframe(1)
-            try:
-                while frame is not None:
-                    if frame.f_code is refresh_from_db_code:
-                        instance = frame.f_locals["self"]
-                        if qs is frame.f_locals.get("db_instance_qs") or (
-                            qs.model is instance.__class__
-                            and qs._hints.get("instance") is instance
-                        ):
-                            return func(*args, **kwargs)
-                    frame = frame.f_back
-            finally:
-                del frame
+            # object. Follow actual clones of Django's refresh queryset;
+            # routing hints can also occur on unrelated queries.
+            clones = refresh_clones.get()
+            if clones is not None:
+                frame = sys._getframe(1)
+                try:
+                    while frame is not None:
+                        if frame.f_code is refresh_from_db_code:
+                            source = frame.f_locals.get("db_instance_qs")
+                            ancestor = qs
+                            for clone, parent in reversed(clones):
+                                if ancestor is source:
+                                    break
+                                if ancestor is clone:
+                                    ancestor = parent
+                            if ancestor is source:
+                                return func(*args, **kwargs)
+                        frame = frame.f_back
+                finally:
+                    del frame
             # Detect N+1 on standalone .get() calls (e.g. in a loop).
             # Skip if the queryset is already tracked via a relation descriptor,
             # or if we're resolving a GenericForeignKey (its own patch reports
