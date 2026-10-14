@@ -1,6 +1,7 @@
 import functools
 import importlib
 import inspect
+import sys
 from contextvars import ContextVar
 from typing import Any, Callable, Optional, TypedDict, Union
 
@@ -537,10 +538,29 @@ def patch_global_queryset():
 
     QuerySet._fetch_all = patch_fetch_all(QuerySet._fetch_all)
 
+    refresh_from_db_code = models.Model.refresh_from_db.__code__
+
     def patch_get(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             qs = args[0]
+            # A refresh reloads an existing instance, not a singly-loaded
+            # object. Django's instance hint survives custom queryset clones.
+            # Only match Django's implementation so unrelated queries in
+            # refresh_from_db overrides retain normal get() detection.
+            frame = sys._getframe(1)
+            try:
+                while frame is not None:
+                    if frame.f_code is refresh_from_db_code:
+                        instance = frame.f_locals["self"]
+                        if qs is frame.f_locals.get("db_instance_qs") or (
+                            qs.model is instance.__class__
+                            and qs._hints.get("instance") is instance
+                        ):
+                            return func(*args, **kwargs)
+                    frame = frame.f_back
+            finally:
+                del frame
             # Detect N+1 on standalone .get() calls (e.g. in a loop).
             # Skip if the queryset is already tracked via a relation descriptor,
             # or if we're resolving a GenericForeignKey (its own patch reports
