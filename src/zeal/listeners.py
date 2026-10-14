@@ -79,6 +79,7 @@ class IgnoreScope:
     # Index range in NPlusOneContext.allowlist owned by this scope.
     start: int
     stop: int
+    detection_enabled: bool = False
     used: bool = False
 
 
@@ -290,6 +291,8 @@ def setup() -> Optional[Token]:
     context = _nplusone_context.get()
     if hasattr(settings, "ZEAL_ALLOWLIST"):
         _validate_allowlist(settings.ZEAL_ALLOWLIST)
+    for scope in context.ignore_scopes:
+        scope.detection_enabled = True
     return _nplusone_context.set(
         NPlusOneContext(
             enabled=True,
@@ -328,6 +331,7 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
         IgnoreScope(
             start=len(old_context.allowlist),
             stop=len(old_context.allowlist) + len(allowlist),
+            detection_enabled=old_context.enabled,
         )
         if check_unused
         else None
@@ -351,7 +355,7 @@ def zeal_ignore(allowlist: Optional[list[AllowListEntry]] = None):
     finally:
         _nplusone_context.reset(token)
 
-    if old_context.enabled and scope is not None and not scope.used:
+    if scope is not None and scope.detection_enabled and not scope.used:
         message = "zeal_ignore() did not suppress any N+1 queries"
         if getattr(settings, "ZEAL_RAISE", True):
             raise UnusedIgnoreError(message)

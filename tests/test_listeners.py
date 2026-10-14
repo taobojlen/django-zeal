@@ -514,3 +514,33 @@ def test_unused_ignore_is_not_checked_when_detection_is_disabled(settings):
         with zeal_ignore():
             pass
     assert not caught
+
+
+@pytest.mark.nozeal
+@pytest.mark.parametrize("raise_errors", [False, True])
+@pytest.mark.parametrize("used", [False, True])
+def test_ignore_checked_when_detection_starts_inside(
+    settings, raise_errors, used
+):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    settings.ZEAL_RAISE = raise_errors
+    UserFactory.create_batch(2)
+
+    def run():
+        with zeal_ignore():
+            with zeal_context():
+                if used:
+                    for user in User.objects.all():
+                        list(user.posts.all())
+
+    if used:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            run()
+        assert not caught
+    elif raise_errors:
+        with pytest.raises(UnusedIgnoreError):
+            run()
+    else:
+        with pytest.warns(UserWarning, match="did not suppress"):
+            run()

@@ -195,8 +195,9 @@ it emits a warning instead. The check applies to the block as a whole, not
 each allowlist entry. Queries below `ZEAL_NPLUSONE_THRESHOLD`, prefetched
 relations, and singly-loaded instances do not count as suppressed N+1s.
 Global and enclosing ignores take precedence, so a redundant inner ignore
-is reported as unused. Checks are skipped when detection is disabled or an
-exception leaves the block.
+is reported as unused. The check also applies when detection starts inside
+the block, for example in a nested `zeal_context()`. Checks are skipped if
+detection remains disabled throughout the block or an exception leaves it.
 
 Use this setting in tests where the ignored N+1 is expected to occur. A block
 can be unused for one input but necessary for another. Querysets must be
