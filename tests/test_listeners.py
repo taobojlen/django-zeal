@@ -420,16 +420,21 @@ def test_unused_ignore_respects_threshold(settings, accesses, show_all):
         run()
 
 
-@pytest.mark.parametrize("prefetch", [False, True])
-def test_unused_ignore_with_optimized_queries(settings, prefetch):
+def test_unused_ignore_with_prefetched_relations(settings):
     settings.ZEAL_CHECK_UNUSED_IGNORES = True
     UserFactory.create_batch(2)
     with pytest.raises(UnusedIgnoreError):
         with zeal_ignore():
-            if prefetch:
-                users = User.objects.prefetch_related("posts")
-            else:
-                users = [User.objects.first(), User.objects.last()]
+            for user in User.objects.prefetch_related("posts"):
+                list(user.posts.all())
+
+
+def test_unused_ignore_with_singly_loaded_instances(settings):
+    settings.ZEAL_CHECK_UNUSED_IGNORES = True
+    UserFactory.create_batch(2)
+    with pytest.raises(UnusedIgnoreError):
+        with zeal_ignore():
+            users = [User.objects.first(), User.objects.last()]
             for user in users:
                 assert user is not None
                 list(user.posts.all())
